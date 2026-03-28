@@ -11,6 +11,52 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.1.0] — 2026-03-28
+
+### Added
+
+- **OpenAI provider support** — email classification can now use any
+  OpenAI chat-completion model (default `gpt-4o`) in addition to Claude.
+
+- `ai_provider` config field (`"anthropic"` | `"openai"`, default `"anthropic"`).
+
+- `openai_model` config field (default `"gpt-4o"`).  Any model accepted by
+  the target endpoint can be specified (e.g. `gpt-4o-mini`, `gpt-4-turbo`,
+  Azure deployment names, OpenRouter slugs).
+
+- `OPENAI_API_KEY` environment variable — required when `ai_provider = openai`.
+
+- `OPENAI_BASE_URL` environment variable — optional base URL override for
+  OpenAI-compatible third-party endpoints (Azure OpenAI, OpenRouter, Ollama, etc.).
+
+- `openai>=1.30.0` added to `requirements.txt`.
+
+### Changed
+
+- **`src/classifier.py`** refactored into a provider abstraction:
+  - New `BaseClassifier` abstract base class with shared `_parse_category()`
+    and `_log_result()` helpers.
+  - `AnthropicClassifier` — existing Claude logic moved here unchanged
+    (prompt caching and adaptive thinking preserved).
+  - `OpenAIClassifier` — new backend using `openai.OpenAI.chat.completions.create()`
+    with `temperature=0` for deterministic output.
+  - `create_classifier()` factory function selects the backend from config
+    and validates that the required API key is present.
+
+- **`src/main.py`** updated to use `create_classifier()` factory and
+  `BaseClassifier` type annotation; logs the active provider and model at
+  startup.
+
+- **`src/config_loader.py`** adds `ai_provider`, `anthropic_model`, and
+  `openai_model` fields to `Config`; validates `ai_provider` value.
+
+- **`config/config.yaml`** documents the new `ai_provider`, `anthropic_model`,
+  and `openai_model` fields with inline comments.
+
+- **`.env.example`** documents `OPENAI_API_KEY` and `OPENAI_BASE_URL`.
+
+---
+
 ## [1.0.0] — 2026-03-28
 
 ### Added
@@ -101,5 +147,6 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - **`requirements.txt`** — Pinned minimum versions for all dependencies.
 
-[Unreleased]: https://github.com/rpangrazio/gmail-sorter/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/rpangrazio/gmail-sorter/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/rpangrazio/gmail-sorter/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/rpangrazio/gmail-sorter/releases/tag/v1.0.0

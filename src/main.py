@@ -36,7 +36,7 @@ from dotenv import load_dotenv
 from googleapiclient.discovery import build
 
 from src.auth import GoogleAuthManager
-from src.classifier import Classifier
+from src.classifier import BaseClassifier, create_classifier
 from src.config_loader import load_config
 from src.gmail_client import GmailClient, HistoryExpiredError
 from src.label_manager import LabelManager
@@ -73,6 +73,11 @@ def main() -> None:
     logger.info(
         "Categories: %s", ", ".join(c.name for c in config.categories)
     )
+    logger.info(
+        "AI provider: %s (model: %s)",
+        config.ai_provider,
+        config.anthropic_model if config.ai_provider == "anthropic" else config.openai_model,
+    )
     if config.dry_run:
         logger.warning("DRY RUN mode enabled — labels will NOT be applied.")
     logger.info("=" * 60)
@@ -84,10 +89,19 @@ def main() -> None:
     token_path = os.environ.get("GOOGLE_TOKEN_PATH", "/data/token.json")
     state_file_path = os.environ.get("STATE_FILE_PATH", "/data/state.json")
     anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    openai_api_key = os.environ.get("OPENAI_API_KEY", "")
+    openai_base_url = os.environ.get("OPENAI_BASE_URL", "")
 
-    if not anthropic_api_key:
+    # Validate that the required API key for the configured provider is present.
+    if config.ai_provider == "anthropic" and not anthropic_api_key:
         logger.error(
-            "ANTHROPIC_API_KEY environment variable is not set. "
+            "ANTHROPIC_API_KEY is not set but ai_provider='anthropic'. "
+            "Set it in your .env file or Docker environment."
+        )
+        sys.exit(1)
+    if config.ai_provider == "openai" and not openai_api_key:
+        logger.error(
+            "OPENAI_API_KEY is not set but ai_provider='openai'. "
             "Set it in your .env file or Docker environment."
         )
         sys.exit(1)
@@ -112,7 +126,12 @@ def main() -> None:
     gmail_client = GmailClient(gmail_service)
     state_manager = StateManager(state_file_path)
     label_manager = LabelManager(gmail_service)
-    classifier = Classifier(api_key=anthropic_api_key, config=config)
+    classifier = create_classifier(
+        config=config,
+        anthropic_api_key=anthropic_api_key,
+        openai_api_key=openai_api_key,
+        openai_base_url=openai_base_url or None,
+    )
     pubsub_client = PubSubClient(
         subscription_path=config.pubsub_subscription,
         credentials=creds,
@@ -176,14 +195,14 @@ class _ProcessingContext:
     def __init__(
         self,
         gmail_client: GmailClient,
-        classifier: Classifier,
+        classifier: BaseClassifier,
         label_manager: LabelManager,
         state_manager: StateManager,
         config_categories: Dict[str, str],
         dry_run: bool,
     ) -> None:
         self._gmail = gmail_client
-        self._classifier = classifier
+        self._classifier: BaseClassifier = classifier
         self._labels = label_manager
         self._state = state_manager
         self._categories = config_categories  # name → label_name

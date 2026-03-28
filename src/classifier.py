@@ -1,17 +1,25 @@
 """
-AI-powered email classifier using Claude.
+AI-powered email classifier with pluggable provider backends.
 
-Sends email metadata to Claude (``claude-opus-4-6`` with adaptive thinking) and
-returns the matching category name defined in the user's configuration.
+Supports two classification backends, selected via ``ai_provider`` in config:
 
-The system prompt — which includes all category definitions — is sent with
-``cache_control: {"type": "ephemeral"}`` so that repeated classification calls
-within a 5-minute window benefit from Anthropic's prompt caching (up to ~90%
-cost reduction on the cached prefix).
+- **anthropic** (default): Uses ``claude-opus-4-6`` with adaptive thinking.
+  The system prompt is sent with ``cache_control: {"type": "ephemeral"}`` for
+  up to ~90% cost reduction on repeated calls within a 5-minute window.
+
+- **openai**: Uses any OpenAI chat-completion model (default ``gpt-4o``).
+  Pass ``OPENAI_API_KEY`` and optionally ``OPENAI_BASE_URL`` to point at a
+  compatible third-party API endpoint.
+
+Public interface — call :func:`create_classifier` to obtain the right backend::
+
+    classifier = create_classifier(config, anthropic_api_key="...", openai_api_key="...")
+    category = classifier.classify(email_data)
 """
 
 import logging
 import re
+from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
 import anthropic
@@ -20,66 +28,170 @@ from src.config_loader import Category, Config
 
 logger = logging.getLogger(__name__)
 
-# The model used for all classification requests.
-_MODEL = "claude-opus-4-6"
+# Default models per provider.
+_DEFAULT_ANTHROPIC_MODEL = "claude-opus-4-6"
+_DEFAULT_OPENAI_MODEL = "gpt-4o"
 
 # Maximum tokens allocated for the classification response.
 # The answer is a single category name, so this is intentionally small.
 _MAX_TOKENS = 256
 
 
-class Classifier:
-    """
-    Classifies emails into user-defined categories using Claude AI.
+# ---------------------------------------------------------------------------
+# Abstract base
+# ---------------------------------------------------------------------------
 
-    Builds a cached system prompt from the configuration categories and
-    sends each email's metadata as a user message.  Claude is instructed
-    to respond with only the category name (or ``NONE`` if no category fits).
+class BaseClassifier(ABC):
+    """
+    Abstract base class for email classifiers.
+
+    Concrete subclasses implement :meth:`classify` for a specific AI provider.
+    All subclasses share the same prompt-building helpers and response-parsing
+    logic defined in this module.
 
     Args:
-        api_key: Anthropic API key.
-        config: Application configuration containing the category definitions.
+        config: Application configuration containing category definitions.
     """
 
-    def __init__(self, api_key: str, config: Config) -> None:
-        self._client = anthropic.Anthropic(api_key=api_key)
+    def __init__(self, config: Config) -> None:
         self._config = config
         self._system_prompt = _build_system_prompt(config.categories)
         self._valid_names = {cat.name for cat in config.categories}
 
+    @abstractmethod
     def classify(self, email_data: Dict[str, Any]) -> Optional[str]:
         """
         Classify a single email and return the matching category name.
 
         Args:
-            email_data: Dict as returned by :meth:`~src.gmail_client.GmailClient.get_message`,
-                with keys ``subject``, ``from_``, ``to``, ``date``, ``snippet``, ``body``.
+            email_data: Dict as returned by
+                :meth:`~src.gmail_client.GmailClient.get_message`,
+                with keys ``subject``, ``from_``, ``to``, ``date``,
+                ``snippet``, ``body``.
 
         Returns:
             The category ``name`` string (e.g., ``"work"``), or ``None`` if
-            Claude returns ``NONE`` or an unrecognized value.
+            no category was matched.
+        """
+
+    @property
+    @abstractmethod
+    def provider_name(self) -> str:
+        """Human-readable name of the AI provider (e.g. ``"anthropic"``)."""
+
+    # ------------------------------------------------------------------
+    # Shared helpers available to all subclasses
+    # ------------------------------------------------------------------
+
+    def _parse_category(self, raw: str) -> Optional[str]:
+        """
+        Extract a valid category name from a raw AI response string.
+
+        Handles minor formatting variations (punctuation, extra whitespace,
+        mixed case) and common refusal words (``none``, ``n/a``, etc.).
+
+        Args:
+            raw: AI response text, already stripped and lowercased.
+
+        Returns:
+            Matching category name string, or ``None``.
+        """
+        if raw in self._valid_names:
+            return raw
+
+        if raw in {"none", "n/a", "unknown", "other", "no match"}:
+            return None
+
+        # Strip punctuation and retry exact match.
+        cleaned = re.sub(r"[^\w]", "", raw)
+        if cleaned in self._valid_names:
+            return cleaned
+
+        # Substring search — handles responses like "category: work".
+        for name in self._valid_names:
+            if name in raw:
+                return name
+
+        logger.warning("Unrecognized classification response from %s: %r",
+                       self.provider_name, raw)
+        return None
+
+    def _log_result(self, category: Optional[str], subject: str) -> None:
+        """Log the classification outcome at the appropriate level."""
+        if category:
+            logger.info(
+                "[%s] Classification result: '%s' (subject: %r)",
+                self.provider_name,
+                category,
+                subject,
+            )
+        else:
+            logger.info(
+                "[%s] No category matched (subject: %r).",
+                self.provider_name,
+                subject,
+            )
+
+
+# ---------------------------------------------------------------------------
+# Anthropic backend
+# ---------------------------------------------------------------------------
+
+class AnthropicClassifier(BaseClassifier):
+    """
+    Email classifier backed by Anthropic Claude.
+
+    Uses ``claude-opus-4-6`` with adaptive thinking and prompt caching.
+    The system prompt (containing all category definitions) is marked with
+    ``cache_control: {"type": "ephemeral"}`` so that the API can cache it
+    across successive calls, reducing cost and latency.
+
+    Args:
+        api_key: Anthropic API key (``ANTHROPIC_API_KEY``).
+        config: Application configuration.
+        model: Claude model identifier.  Defaults to ``claude-opus-4-6``.
+    """
+
+    def __init__(
+        self,
+        api_key: str,
+        config: Config,
+        model: str = _DEFAULT_ANTHROPIC_MODEL,
+    ) -> None:
+        super().__init__(config)
+        self._client = anthropic.Anthropic(api_key=api_key)
+        self._model = model
+        logger.info("Anthropic classifier initialised (model: %s).", model)
+
+    @property
+    def provider_name(self) -> str:
+        return "anthropic"
+
+    def classify(self, email_data: Dict[str, Any]) -> Optional[str]:
+        """
+        Classify *email_data* using Claude with adaptive thinking.
 
         Raises:
             anthropic.APIError: On unrecoverable Anthropic API failures.
         """
         user_message = _format_email_for_prompt(email_data)
+        subject = email_data.get("subject", "")
 
         logger.debug(
-            "Classifying email — subject: %r, from: %r",
-            email_data.get("subject"),
+            "[anthropic] Classifying email — subject: %r, from: %r",
+            subject,
             email_data.get("from_"),
         )
 
         with self._client.messages.stream(
-            model=_MODEL,
+            model=self._model,
             max_tokens=_MAX_TOKENS,
             thinking={"type": "adaptive"},
             system=[
                 {
                     "type": "text",
                     "text": self._system_prompt,
-                    # Cache the system prompt; it is identical for every
-                    # classification call within this session.
+                    # Cache the system prompt — identical across every call.
                     "cache_control": {"type": "ephemeral"},
                 }
             ],
@@ -87,7 +199,6 @@ class Classifier:
         ) as stream:
             response = stream.get_final_message()
 
-        # Extract the text response from content blocks.
         raw_answer = ""
         for block in response.content:
             if block.type == "text":
@@ -95,74 +206,179 @@ class Classifier:
                 break
 
         category = self._parse_category(raw_answer)
-
-        if category:
-            logger.info(
-                "Classification result: '%s' (subject: %r)",
-                category,
-                email_data.get("subject"),
-            )
-        else:
-            logger.info(
-                "No category matched for email (subject: %r). "
-                "Raw response: %r",
-                email_data.get("subject"),
-                raw_answer,
-            )
-
+        self._log_result(category, subject)
         return category
 
-    def _parse_category(self, raw: str) -> Optional[str]:
+
+# ---------------------------------------------------------------------------
+# OpenAI backend
+# ---------------------------------------------------------------------------
+
+class OpenAIClassifier(BaseClassifier):
+    """
+    Email classifier backed by an OpenAI-compatible chat-completion API.
+
+    Works with any service that implements the OpenAI chat-completions
+    interface, including the official OpenAI API, Azure OpenAI, and many
+    self-hosted or third-party providers.
+
+    Set ``OPENAI_BASE_URL`` in the environment to point at a non-OpenAI
+    compatible endpoint (e.g., ``https://openrouter.ai/api/v1``).
+
+    Args:
+        api_key: OpenAI API key (``OPENAI_API_KEY``).
+        config: Application configuration.
+        model: Chat-completion model name.  Defaults to ``gpt-4o``.
+        base_url: Optional API base URL override.  When ``None`` the SDK
+            uses its built-in default (``https://api.openai.com/v1``).
+    """
+
+    def __init__(
+        self,
+        api_key: str,
+        config: Config,
+        model: str = _DEFAULT_OPENAI_MODEL,
+        base_url: Optional[str] = None,
+    ) -> None:
+        super().__init__(config)
+        # Import lazily so the openai package is only required when actually
+        # used, keeping the error message actionable.
+        try:
+            from openai import OpenAI  # noqa: PLC0415
+        except ImportError as exc:
+            raise ImportError(
+                "The 'openai' package is required to use the OpenAI provider.\n"
+                "Install it with: pip install openai"
+            ) from exc
+
+        kwargs: Dict[str, Any] = {"api_key": api_key}
+        if base_url:
+            kwargs["base_url"] = base_url
+            logger.info("OpenAI classifier using custom base URL: %s", base_url)
+
+        self._client = OpenAI(**kwargs)
+        self._model = model
+        logger.info("OpenAI classifier initialised (model: %s).", model)
+
+    @property
+    def provider_name(self) -> str:
+        return "openai"
+
+    def classify(self, email_data: Dict[str, Any]) -> Optional[str]:
         """
-        Extract a valid category name from Claude's raw response.
+        Classify *email_data* using an OpenAI chat-completion model.
 
-        Handles minor formatting variations (e.g., surrounding punctuation
-        or extra whitespace) by stripping and lowercasing.
-
-        Args:
-            raw: Claude's raw text response, already stripped and lowercased.
-
-        Returns:
-            Matching category name, or None.
+        Raises:
+            openai.OpenAIError: On unrecoverable OpenAI API failures.
         """
-        # Exact match first.
-        if raw in self._valid_names:
-            return raw
+        user_message = _format_email_for_prompt(email_data)
+        subject = email_data.get("subject", "")
 
-        # Handle "NONE" (case-insensitive).
-        if raw in {"none", "n/a", "unknown", "other"}:
-            return None
+        logger.debug(
+            "[openai] Classifying email — subject: %r, from: %r",
+            subject,
+            email_data.get("from_"),
+        )
 
-        # Strip punctuation and try again.
-        cleaned = re.sub(r"[^\w]", "", raw)
-        if cleaned in self._valid_names:
-            return cleaned
+        response = self._client.chat.completions.create(
+            model=self._model,
+            max_tokens=_MAX_TOKENS,
+            temperature=0,  # Deterministic output for classification
+            messages=[
+                {"role": "system", "content": self._system_prompt},
+                {"role": "user", "content": user_message},
+            ],
+        )
 
-        # Search for any valid category name appearing anywhere in the response.
-        for name in self._valid_names:
-            if name in raw:
-                return name
+        raw_answer = (response.choices[0].message.content or "").strip().lower()
 
-        logger.warning("Unrecognized classification response: %r", raw)
-        return None
+        category = self._parse_category(raw_answer)
+        self._log_result(category, subject)
+        return category
 
 
-# ------------------------------------------------------------------
-# Module-level helpers
-# ------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Factory
+# ---------------------------------------------------------------------------
+
+def create_classifier(
+    config: Config,
+    anthropic_api_key: str = "",
+    openai_api_key: str = "",
+    openai_base_url: Optional[str] = None,
+) -> BaseClassifier:
+    """
+    Construct and return the classifier backend specified in *config*.
+
+    The active provider is determined by ``config.ai_provider``:
+
+    - ``"anthropic"`` → :class:`AnthropicClassifier`
+    - ``"openai"``    → :class:`OpenAIClassifier`
+
+    Args:
+        config: Application configuration (contains ``ai_provider`` and
+            the relevant model field).
+        anthropic_api_key: Anthropic API key; required when provider is
+            ``"anthropic"``.
+        openai_api_key: OpenAI API key; required when provider is
+            ``"openai"``.
+        openai_base_url: Optional base URL for OpenAI-compatible endpoints.
+
+    Returns:
+        A :class:`BaseClassifier` instance ready to call :meth:`~BaseClassifier.classify`.
+
+    Raises:
+        ValueError: If the provider is unknown or the required API key is
+            missing.
+    """
+    provider = config.ai_provider.lower()
+
+    if provider == "anthropic":
+        if not anthropic_api_key:
+            raise ValueError(
+                "ANTHROPIC_API_KEY is required when ai_provider is 'anthropic'."
+            )
+        return AnthropicClassifier(
+            api_key=anthropic_api_key,
+            config=config,
+            model=config.anthropic_model,
+        )
+
+    if provider == "openai":
+        if not openai_api_key:
+            raise ValueError(
+                "OPENAI_API_KEY is required when ai_provider is 'openai'."
+            )
+        return OpenAIClassifier(
+            api_key=openai_api_key,
+            config=config,
+            model=config.openai_model,
+            base_url=openai_base_url or None,
+        )
+
+    raise ValueError(
+        f"Unknown ai_provider {provider!r}. "
+        "Valid values are 'anthropic' and 'openai'."
+    )
+
+
+# ---------------------------------------------------------------------------
+# Shared prompt helpers
+# ---------------------------------------------------------------------------
 
 def _build_system_prompt(categories: List[Category]) -> str:
     """
     Build the classification system prompt from the category list.
 
-    The prompt is intentionally concise to minimize token costs while
-    being unambiguous about the expected output format.
+    The same prompt text is used for both providers.  It is intentionally
+    concise to minimise token costs while being unambiguous about the
+    expected output format.
 
     Args:
         categories: Ordered list of :class:`~src.config_loader.Category` objects.
 
     Returns:
-        The system prompt string to use for all classification requests.
+        System prompt string.
     """
     category_lines = []
     for cat in categories:
@@ -195,16 +411,15 @@ following categories. If none of the categories fit, respond with NONE.
 
 def _format_email_for_prompt(email_data: Dict[str, Any]) -> str:
     """
-    Format an email dict into a compact prompt string for Claude.
+    Format an email dict into a compact string for the AI prompt.
 
     Args:
         email_data: Dict with email fields as returned by
             :meth:`~src.gmail_client.GmailClient.get_message`.
 
     Returns:
-        A formatted string containing the email metadata.
+        Formatted string containing the email metadata.
     """
-    # Truncate the body to avoid excessive token usage.
     body_preview = (email_data.get("body") or email_data.get("snippet", ""))[:1_500]
 
     return (

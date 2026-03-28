@@ -46,6 +46,33 @@ dry_run: false
 
 
 # ---------------------------------------------------------------------------
+# AI Provider
+# ---------------------------------------------------------------------------
+
+# Which AI provider to use for email classification.
+# Options: "anthropic" (default) | "openai"
+#
+# Set the corresponding API key in your .env file:
+#   anthropic → ANTHROPIC_API_KEY
+#   openai    → OPENAI_API_KEY
+#
+# To use an OpenAI-compatible third-party endpoint (Azure OpenAI, OpenRouter,
+# Ollama, etc.) also set OPENAI_BASE_URL in your .env file.
+ai_provider: "anthropic"
+
+# Model to use when ai_provider = "anthropic".
+# See https://docs.anthropic.com/en/docs/about-claude/models
+anthropic_model: "claude-opus-4-6"
+
+# Model to use when ai_provider = "openai".
+# Any chat-completion model accepted by your endpoint, e.g.:
+#   OpenAI:      gpt-4o | gpt-4o-mini | gpt-4-turbo
+#   Azure:       your deployment name
+#   OpenRouter:  openai/gpt-4o | anthropic/claude-3-5-sonnet
+openai_model: "gpt-4o"
+
+
+# ---------------------------------------------------------------------------
 # Email Categories
 # ---------------------------------------------------------------------------
 #

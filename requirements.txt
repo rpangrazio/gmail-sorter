@@ -2,8 +2,9 @@
 # Gmail AI Sorter — Python Dependencies
 # =============================================================================
 
-# Anthropic Claude AI SDK
+# AI provider SDKs (install both; only the configured provider is used at runtime)
 anthropic>=0.40.0
+openai>=1.30.0
 
 # Google API client libraries
 google-api-python-client>=2.100.0
