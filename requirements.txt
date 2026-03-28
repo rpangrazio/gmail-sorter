@@ -1,0 +1,21 @@
+# =============================================================================
+# Gmail AI Sorter — Python Dependencies
+# =============================================================================
+
+# Anthropic Claude AI SDK
+anthropic>=0.40.0
+
+# Google API client libraries
+google-api-python-client>=2.100.0
+google-auth>=2.23.0
+google-auth-httplib2>=0.2.0
+google-auth-oauthlib>=1.2.0
+
+# Google Cloud Pub/Sub client
+google-cloud-pubsub>=2.21.0
+
+# YAML parsing
+PyYAML>=6.0.1
+
+# Environment variable loading
+python-dotenv>=1.0.0

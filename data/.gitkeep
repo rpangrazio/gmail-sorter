@@ -1,0 +1,3 @@
+# Runtime data directory.
+# token.json and state.json are written here at runtime and are in .gitignore.
+# This file is tracked so the directory exists in git.

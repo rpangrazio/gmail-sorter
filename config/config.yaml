@@ -1,0 +1,159 @@
+# =============================================================================
+# Gmail AI Sorter — Configuration File
+# =============================================================================
+#
+# Copy this file to config/config.yaml and fill in the values for your GCP
+# project before starting the agent.
+#
+# For setup instructions see README.md.
+# =============================================================================
+
+
+# ---------------------------------------------------------------------------
+# Google Cloud Project
+# ---------------------------------------------------------------------------
+
+# The GCP project ID that owns the Pub/Sub topic and subscription below.
+google_project_id: "YOUR_GCP_PROJECT_ID"
+
+# Full Pub/Sub subscription resource path.
+# The agent PULLS from this subscription to receive Gmail change notifications.
+# Format: projects/<project-id>/subscriptions/<subscription-name>
+pubsub_subscription: "projects/YOUR_GCP_PROJECT_ID/subscriptions/gmail-sorter-sub"
+
+# Full Pub/Sub topic resource path that Gmail will PUBLISH notifications to.
+# Gmail's service account (gmail-api-push@system.gserviceaccount.com) must
+# have the "Pub/Sub Publisher" role on this topic (see README.md § GCP Setup).
+# Format: projects/<project-id>/topics/<topic-name>
+gmail_watch_topic: "projects/YOUR_GCP_PROJECT_ID/topics/gmail-sorter"
+
+
+# ---------------------------------------------------------------------------
+# Agent Behaviour
+# ---------------------------------------------------------------------------
+
+# Maximum number of new messages to process in a single Pub/Sub pull cycle.
+# Lower values give more frequent progress logging; higher values batch work.
+max_emails_per_poll: 10
+
+# Logging verbosity: DEBUG | INFO | WARNING | ERROR
+# Can be overridden by the LOG_LEVEL environment variable.
+log_level: "INFO"
+
+# Set to true to classify emails WITHOUT applying any Gmail labels.
+# Useful for testing your category definitions before going live.
+dry_run: false
+
+
+# ---------------------------------------------------------------------------
+# Email Categories
+# ---------------------------------------------------------------------------
+#
+# Each category entry has:
+#   name        – short, lowercase identifier (no spaces); used as the
+#                 return value from Claude's classification call.
+#   label       – Gmail label name to apply.  Use "/" for nested labels
+#                 (e.g., "AI-Sorted/Work").  Missing labels are created
+#                 automatically at startup.
+#   description – Natural-language description read by Claude when deciding
+#                 which category best matches an email.  Be specific and
+#                 mention concrete characteristics of emails in this category.
+#                 Minimum 20 characters.
+#   keywords    – (optional) List of hint words included in the prompt.
+#                 These help Claude with edge cases but the description is
+#                 the primary guide.
+#
+# Categories are evaluated in order; Claude picks the single best match.
+# Tip: put the most specific categories first (e.g., "github" before "work").
+# ---------------------------------------------------------------------------
+
+categories:
+
+  # ── GitHub / Version Control ─────────────────────────────────────────────
+  - name: "github"
+    label: "AI-Sorted/GitHub"
+    description: >
+      Notifications from GitHub or other version-control platforms. Includes
+      pull request reviews, issue comments, CI/CD build results, security
+      alerts, dependabot updates, and repository activity. Sender domain is
+      typically github.com or noreply@github.com.
+    keywords:
+      - pull request
+      - merged
+      - failed
+      - dependabot
+      - workflow
+
+  # ── Work / Professional ──────────────────────────────────────────────────
+  - name: "work"
+    label: "AI-Sorted/Work"
+    description: >
+      Professional and work-related emails: meeting invitations, project
+      updates, task assignments, client communications, HR notices,
+      performance reviews, and any email from a corporate domain or
+      sent by a work colleague. Usually has a formal or semi-formal tone.
+    keywords:
+      - meeting
+      - project
+      - deadline
+      - invoice
+      - contract
+      - standup
+
+  # ── Finance / Billing ────────────────────────────────────────────────────
+  - name: "finance"
+    label: "AI-Sorted/Finance"
+    description: >
+      Financial emails: bank statements, credit card notifications, payment
+      confirmations, subscription renewals, tax documents, investment
+      account alerts, wire transfer confirmations, and any email about
+      money moving in or out of an account.
+    keywords:
+      - statement
+      - payment
+      - balance
+      - transaction
+      - invoice
+      - receipt
+      - refund
+
+  # ── Shopping / Receipts ──────────────────────────────────────────────────
+  - name: "receipts"
+    label: "AI-Sorted/Receipts"
+    description: >
+      Order confirmations, shipping notifications, delivery updates, and
+      purchase receipts from online retailers and services.  Subject lines
+      often include "Your order", "Shipped", "Delivered", or "Receipt".
+      Different from finance in that these are retail purchase records,
+      not banking or account emails.
+    keywords:
+      - order confirmed
+      - your order
+      - shipped
+      - delivered
+      - receipt
+      - tracking
+
+  # ── Newsletters ──────────────────────────────────────────────────────────
+  - name: "newsletters"
+    label: "AI-Sorted/Newsletters"
+    description: >
+      Marketing emails, promotional newsletters, product announcements,
+      digest emails, and any bulk-sent content with an unsubscribe link.
+      Typically sent by companies to a large audience rather than to the
+      recipient personally.
+    keywords:
+      - unsubscribe
+      - newsletter
+      - digest
+      - weekly
+      - monthly
+      - announcement
+
+  # ── Personal ─────────────────────────────────────────────────────────────
+  - name: "personal"
+    label: "AI-Sorted/Personal"
+    description: >
+      Emails from friends, family members, or acquaintances about non-work
+      topics. Casual or informal tone, social plans, personal life updates,
+      or one-on-one personal correspondence.

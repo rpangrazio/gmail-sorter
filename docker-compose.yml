@@ -1,0 +1,77 @@
+# =============================================================================
+# Gmail AI Sorter — Docker Compose
+# =============================================================================
+#
+# Usage:
+#
+#   # First-time OAuth2 authorization (opens browser or prints URL):
+#   docker-compose run --rm sorter python -m src.main --setup
+#
+#   # Start the agent in the background:
+#   docker-compose up -d
+#
+#   # Follow live logs:
+#   docker-compose logs -f
+#
+#   # Stop the agent:
+#   docker-compose down
+#
+# Prerequisites:
+#   1. Create a .env file from .env.example and fill in ANTHROPIC_API_KEY.
+#   2. Place your Google OAuth2 credentials.json in ./credentials/
+#   3. Edit config/config.yaml with your GCP project details and categories.
+# =============================================================================
+
+services:
+  sorter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gmail-sorter:latest
+    container_name: gmail-sorter
+
+    # Restart automatically on crash or Docker daemon restart.
+    # Does NOT restart if stopped manually with `docker-compose down`.
+    restart: unless-stopped
+
+    # Load environment variables from .env file.
+    env_file:
+      - .env
+
+    volumes:
+      # Persistent data: OAuth2 token and Gmail history state.
+      # This named volume survives `docker-compose down` (use `down -v` to remove).
+      - gmail-sorter-data:/data
+
+      # OAuth2 client secrets — read-only for security.
+      # Place your credentials.json in ./credentials/ before first run.
+      - ./credentials:/credentials:ro
+
+      # Configuration — read-only so live edits on the host are visible
+      # after a container restart without rebuilding the image.
+      - ./config:/app/config:ro
+
+    # No ports needed — the agent uses outbound-only Pub/Sub pull connections.
+
+    # Logging configuration: JSON format for easy parsing by log aggregators.
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Resource limits (adjust based on your host capacity).
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+
+# Named volume for persistent state (token.json, state.json).
+# This volume is NOT removed by `docker-compose down` — use `docker-compose down -v`
+# or `docker volume rm gmail-sorter_gmail-sorter-data` to delete it.
+volumes:
+  gmail-sorter-data:
+    name: gmail-sorter-data
