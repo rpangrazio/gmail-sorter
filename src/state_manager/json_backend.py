@@ -1,9 +1,9 @@
 """
-Persistent state management for Gmail AI Sorter.
+JSON-file backend for Gmail AI Sorter state management.
 
-Stores the Gmail history cursor (historyId) and the Gmail watch expiry
-timestamp between runs.  State is written atomically to prevent corruption
-if the container is stopped mid-write.
+State is written atomically to a single JSON file using a temp-file +
+rename strategy so the file is never left in a partially-written state
+if the process is killed mid-write.
 """
 
 import json
@@ -14,10 +14,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from .base import BaseStateManager
+
 logger = logging.getLogger(__name__)
 
 
-class StateManager:
+class JsonStateManager(BaseStateManager):
     """
     Reads and writes application state to a JSON file.
 
@@ -46,25 +48,16 @@ class StateManager:
     # ------------------------------------------------------------------
 
     def get_history_id(self) -> Optional[str]:
-        """
-        Return the last known Gmail history ID, or None if not yet set.
-
-        The history ID is used as the *startHistoryId* parameter when calling
-        ``users.history.list()`` to fetch only changes since the last poll.
-        """
         return self._state.get("history_id")
 
     def set_history_id(self, history_id: str) -> None:
-        """
-        Persist a new history ID to disk.
-
-        Args:
-            history_id: The new history ID string from the Gmail API.
-        """
         if history_id == self._state.get("history_id"):
             return  # No change; skip disk write
-        logger.debug("Updating persisted history ID: %s → %s",
-                     self._state.get("history_id"), history_id)
+        logger.debug(
+            "Updating persisted history ID: %s → %s",
+            self._state.get("history_id"),
+            history_id,
+        )
         self._state["history_id"] = history_id
         self._save()
 
@@ -73,43 +66,16 @@ class StateManager:
     # ------------------------------------------------------------------
 
     def get_watch_expiry(self) -> Optional[datetime]:
-        """
-        Return the Gmail watch expiry as a timezone-aware UTC datetime, or None.
-        """
         ms = self._state.get("watch_expiry_ms")
         if ms is None:
             return None
         return datetime.fromtimestamp(int(ms) / 1000.0, tz=timezone.utc)
 
     def set_watch_expiry(self, expiry_ms: int) -> None:
-        """
-        Persist the Gmail watch expiry timestamp.
-
-        Args:
-            expiry_ms: Expiry time as a Unix timestamp in milliseconds,
-                as returned by the ``users.watch()`` response.
-        """
         self._state["watch_expiry_ms"] = expiry_ms
         self._save()
         expiry_dt = datetime.fromtimestamp(expiry_ms / 1000.0, tz=timezone.utc)
         logger.debug("Watch expiry updated to %s", expiry_dt.isoformat())
-
-    def is_watch_expiring_soon(self, buffer_hours: int = 24) -> bool:
-        """
-        Return True if the Gmail watch will expire within *buffer_hours*.
-
-        Gmail watch registrations last 7 days.  Renewing with a 24-hour buffer
-        ensures there is no gap in notifications if the container restarts.
-
-        Args:
-            buffer_hours: Renewal window in hours before actual expiry.
-        """
-        expiry = self.get_watch_expiry()
-        if expiry is None:
-            return True  # Not yet set; must register a watch
-        now = datetime.now(tz=timezone.utc)
-        from datetime import timedelta
-        return (expiry - now) < timedelta(hours=buffer_hours)
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -126,7 +92,9 @@ class StateManager:
             logger.debug("State loaded from %s: %s", self._path, data)
             return data if isinstance(data, dict) else {}
         except Exception as exc:  # noqa: BLE001
-            logger.warning("Failed to read state file (%s); starting with empty state.", exc)
+            logger.warning(
+                "Failed to read state file (%s); starting with empty state.", exc
+            )
             return {}
 
     def _save(self) -> None:

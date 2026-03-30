@@ -41,7 +41,7 @@ from src.config_loader import load_config
 from src.gmail_client import GmailClient, HistoryExpiredError
 from src.label_manager import LabelManager
 from src.pubsub_client import PubSubClient
-from src.state_manager import StateManager
+from src.state_manager import BaseStateManager, create_state_manager
 
 # How often (seconds) the watch-renewal background thread wakes up to check
 # whether the Gmail watch needs to be renewed.
@@ -88,6 +88,8 @@ def main() -> None:
     )
     token_path = os.environ.get("GOOGLE_TOKEN_PATH", "/data/token.json")
     state_file_path = os.environ.get("STATE_FILE_PATH", "/data/state.json")
+    sqlite_db_path = os.environ.get("SQLITE_DB_PATH", "/data/gmail_sorter.db")
+    database_url = os.environ.get("DATABASE_URL", "")
     anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     openai_api_key = os.environ.get("OPENAI_API_KEY", "")
     openai_base_url = os.environ.get("OPENAI_BASE_URL", "")
@@ -124,7 +126,7 @@ def main() -> None:
     # Build service clients.
     gmail_service = build("gmail", "v1", credentials=creds)
     gmail_client = GmailClient(gmail_service)
-    state_manager = StateManager(state_file_path)
+    state_manager = _create_state_manager(config.state_backend, state_file_path, sqlite_db_path, database_url)
     label_manager = LabelManager(gmail_service)
     classifier = create_classifier(
         config=config,
@@ -197,7 +199,7 @@ class _ProcessingContext:
         gmail_client: GmailClient,
         classifier: BaseClassifier,
         label_manager: LabelManager,
-        state_manager: StateManager,
+        state_manager: BaseStateManager,
         config_categories: Dict[str, str],
         dry_run: bool,
     ) -> None:
@@ -356,7 +358,7 @@ class _ProcessingContext:
 def _watch_renewal_loop(
     gmail_client: GmailClient,
     topic_name: str,
-    state_manager: StateManager,
+    state_manager: BaseStateManager,
     stop_event: threading.Event,
 ) -> None:
     """
@@ -385,8 +387,45 @@ def _watch_renewal_loop(
 # Startup helpers
 # ------------------------------------------------------------------
 
+def _create_state_manager(
+    backend: str,
+    state_file_path: str,
+    sqlite_db_path: str,
+    database_url: str,
+) -> BaseStateManager:
+    """
+    Instantiate the configured state manager backend.
+
+    Args:
+        backend: One of ``"json"``, ``"sqlite"``, or ``"postgres"``.
+        state_file_path: Path used by the JSON backend.
+        sqlite_db_path: Path used by the SQLite backend.
+        database_url: Connection URL used by the PostgreSQL backend.
+
+    Returns:
+        A fully initialised :class:`~src.state_manager.BaseStateManager`.
+    """
+    logger = logging.getLogger(__name__)
+
+    if backend == "postgres":
+        if not database_url:
+            logger.error(
+                "state_backend='postgres' requires DATABASE_URL to be set."
+            )
+            sys.exit(1)
+        logger.info("State backend: PostgreSQL")
+        return create_state_manager("postgres", dsn=database_url)
+
+    if backend == "sqlite":
+        logger.info("State backend: SQLite (%s)", sqlite_db_path)
+        return create_state_manager("sqlite", db_path=sqlite_db_path)
+
+    logger.info("State backend: JSON (%s)", state_file_path)
+    return create_state_manager("json", state_file_path=state_file_path)
+
+
 def _bootstrap_history_id(
-    gmail_client: GmailClient, state_manager: StateManager
+    gmail_client: GmailClient, state_manager: BaseStateManager
 ) -> None:
     """
     Set the initial history cursor if none is stored.

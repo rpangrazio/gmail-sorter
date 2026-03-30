@@ -20,3 +20,6 @@ PyYAML>=6.0.1
 
 # Environment variable loading
 python-dotenv>=1.0.0
+
+# PostgreSQL driver — required only when state_backend = "postgres"
+psycopg2-binary>=2.9.9

@@ -44,6 +44,14 @@ log_level: "INFO"
 # Useful for testing your category definitions before going live.
 dry_run: false
 
+# Storage backend for persisting the Gmail history cursor and watch expiry.
+# Options:
+#   "json"     – atomic JSON file write (default, no extra dependencies).
+#   "sqlite"   – local SQLite database file (stdlib only, no extra dependencies).
+#   "postgres" – PostgreSQL database (requires DATABASE_URL in .env and the
+#                postgres service in docker-compose.yml to be enabled).
+state_backend: "json"
+
 
 # ---------------------------------------------------------------------------
 # AI Provider
