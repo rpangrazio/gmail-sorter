@@ -69,9 +69,48 @@ services:
         reservations:
           memory: 128M
 
-# Named volume for persistent state (token.json, state.json).
+    # Uncomment the depends_on block below when using state_backend=postgres.
+    # depends_on:
+    #   postgres:
+    #     condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Optional PostgreSQL service — used when state_backend = "postgres"
+  # ---------------------------------------------------------------------------
+  # To enable:
+  #   1. Uncomment this entire block and the depends_on block above.
+  #   2. Set state_backend: "postgres" in config/config.yaml.
+  #   3. Set DATABASE_URL=postgresql://sorter:sorter@postgres:5432/gmail_sorter
+  #      in your .env file.
+  #   4. Run: docker-compose up -d
+  # ---------------------------------------------------------------------------
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: gmail-sorter-postgres
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_USER: sorter
+  #     POSTGRES_PASSWORD: sorter
+  #     POSTGRES_DB: gmail_sorter
+  #   volumes:
+  #     - gmail-sorter-pgdata:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U sorter -d gmail_sorter"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 256M
+  #         cpus: "0.25"
+
+# Named volume for persistent state (token.json, state.json / SQLite db).
 # This volume is NOT removed by `docker-compose down` — use `docker-compose down -v`
 # or `docker volume rm gmail-sorter_gmail-sorter-data` to delete it.
 volumes:
   gmail-sorter-data:
     name: gmail-sorter-data
+  # Uncomment when using the postgres service above.
+  # gmail-sorter-pgdata:
+  #   name: gmail-sorter-pgdata

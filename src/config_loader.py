@@ -66,6 +66,9 @@ class Config:
     openai_model: str = "gpt-4o"
     """OpenAI model identifier used when ai_provider is 'openai'."""
 
+    state_backend: str = "json"
+    """Storage backend for persisting application state: 'json', 'sqlite', or 'postgres'."""
+
 
 def load_config(config_path: str) -> Config:
     """
@@ -146,6 +149,14 @@ def load_config(config_path: str) -> Config:
             f"'ai_provider' must be 'anthropic' or 'openai', got: {ai_provider!r}"
         )
 
+    # Validate state_backend value.
+    state_backend = str(raw.get("state_backend", "json")).strip().lower()
+    if state_backend not in {"json", "sqlite", "postgres"}:
+        raise ValueError(
+            f"'state_backend' must be 'json', 'sqlite', or 'postgres', "
+            f"got: {state_backend!r}"
+        )
+
     config = Config(
         google_project_id=str(raw["google_project_id"]).strip(),
         pubsub_subscription=str(raw["pubsub_subscription"]).strip(),
@@ -157,6 +168,7 @@ def load_config(config_path: str) -> Config:
         ai_provider=ai_provider,
         anthropic_model=str(raw.get("anthropic_model", "claude-opus-4-6")).strip(),
         openai_model=str(raw.get("openai_model", "gpt-4o")).strip(),
+        state_backend=state_backend,
     )
 
     logger.info(
