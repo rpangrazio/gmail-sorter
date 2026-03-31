@@ -76,7 +76,7 @@ def main() -> None:
     logger.info(
         "AI provider: %s (model: %s)",
         config.ai_provider,
-        config.anthropic_model if config.ai_provider == "anthropic" else config.openai_model,
+        config.copilot_model if config.ai_provider == "copilot" else config.openai_model,
     )
     if config.dry_run:
         logger.warning("DRY RUN mode enabled — labels will NOT be applied.")
@@ -90,14 +90,14 @@ def main() -> None:
     state_file_path = os.environ.get("STATE_FILE_PATH", "/data/state.json")
     sqlite_db_path = os.environ.get("SQLITE_DB_PATH", "/data/gmail_sorter.db")
     database_url = os.environ.get("DATABASE_URL", "")
-    anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    github_token = os.environ.get("GITHUB_TOKEN", "")
     openai_api_key = os.environ.get("OPENAI_API_KEY", "")
     openai_base_url = os.environ.get("OPENAI_BASE_URL", "")
 
     # Validate that the required API key for the configured provider is present.
-    if config.ai_provider == "anthropic" and not anthropic_api_key:
+    if config.ai_provider == "copilot" and not github_token:
         logger.error(
-            "ANTHROPIC_API_KEY is not set but ai_provider='anthropic'. "
+            "GITHUB_TOKEN is not set but ai_provider='copilot'. "
             "Set it in your .env file or Docker environment."
         )
         sys.exit(1)
@@ -130,7 +130,7 @@ def main() -> None:
     label_manager = LabelManager(gmail_service)
     classifier = create_classifier(
         config=config,
-        anthropic_api_key=anthropic_api_key,
+        github_token=github_token,
         openai_api_key=openai_api_key,
         openai_base_url=openai_base_url or None,
     )
