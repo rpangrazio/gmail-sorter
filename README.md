@@ -2,7 +2,7 @@
 
 An AI-powered Gmail agent that automatically classifies incoming emails into
 user-defined categories and applies Gmail labels. It uses
-[Claude AI](https://www.anthropic.com/claude) for classification and
+[GitHub Copilot](https://github.com/features/copilot) for classification and
 [Google Cloud Pub/Sub](https://cloud.google.com/pubsub) for real-time
 Gmail push notifications.
 
@@ -34,7 +34,7 @@ Gmail Watch API ──publishes──► GCP Pub/Sub Topic
                                         │
                               Gmail History API ──fetches new messages──►
                                         │
-                              Claude AI ──classifies email──►
+                              GitHub Copilot API ──classifies email──►
                                         │
                               Gmail Labels API ──applies label──►
                                         │
@@ -53,11 +53,9 @@ Gmail Watch API ──publishes──► GCP Pub/Sub Topic
    The agent calls `users.history.list(startHistoryId=lastKnownId)` to find
    all new inbox messages since the last processed event.
 
-4. **Claude Classification**: The subject, sender, and body of each new email
-   are sent to Claude (`claude-opus-4-6` with adaptive thinking). The AI
-   returns a single category name based on the descriptions in your config.
-   The system prompt is **prompt-cached** so repeated calls are up to 90%
-   cheaper.
+4. **Copilot Classification**: The subject, sender, and body of each new email
+   are sent to GitHub Copilot's chat-completion API (`gpt-4o` by default). The
+   AI returns a single category name based on the descriptions in your config.
 
 5. **Label Application**: The matching Gmail label is applied to the email.
    Nested labels (e.g., `AI-Sorted/Work`) are created automatically if they
@@ -66,20 +64,21 @@ Gmail Watch API ──publishes──► GCP Pub/Sub Topic
 6. **Watch Renewal**: Gmail watches expire after 7 days. A background thread
    renews the watch automatically every 6 days.
 
-7. **Crash Recovery**: The last-processed history cursor is persisted to
-   `/data/state.json`. On restart the agent resumes exactly where it left
-   off.
+7. **Crash Recovery**: The last-processed history cursor is persisted to the
+   configured state backend (JSON file, SQLite, or PostgreSQL). On restart the
+   agent resumes exactly where it left off.
 
 ---
 
 ## Prerequisites
 
-| Requirement | Version |
+| Requirement | Notes |
 |---|---|
 | Docker & Docker Compose | Docker ≥ 20, Compose ≥ 2.0 |
 | Google account | Any Gmail account |
 | Google Cloud Project | Free tier is sufficient |
-| Anthropic API key | [console.anthropic.com](https://console.anthropic.com) |
+| GitHub account | Must have an active [GitHub Copilot](https://github.com/features/copilot) subscription |
+| GitHub personal access token | See [Installation](#installation) step 3 |
 
 ---
 
@@ -177,20 +176,25 @@ cp /path/to/downloaded-credentials.json ./credentials/credentials.json
 cp .env.example .env
 ```
 
-Edit `.env` and set your Anthropic API key:
+Edit `.env` and set your GitHub personal access token.  The token must belong
+to an account with an active GitHub Copilot subscription:
 
 ```
-ANTHROPIC_API_KEY=sk-ant-...
+GITHUB_TOKEN=ghp_...
 ```
+
+You can create a token at **GitHub → Settings → Developer settings →
+Personal access tokens → Tokens (classic)**.  No specific scopes are
+required beyond the default read access — Copilot access is determined by
+your subscription, not by token scopes.
 
 ### 4. Edit the configuration
 
 ```bash
-cp config/config.yaml config/config.yaml.bak  # optional backup
 nano config/config.yaml
 ```
 
-At minimum, update:
+At minimum, update the GCP fields:
 
 ```yaml
 google_project_id: "your-actual-project-id"
@@ -238,15 +242,44 @@ docker-compose down
 
 All agent behaviour is controlled by `config/config.yaml`.
 
-| Field | Required | Description |
+### Core settings
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `google_project_id` | ✅ | — | GCP project ID |
+| `pubsub_subscription` | ✅ | — | Full Pub/Sub subscription resource path |
+| `gmail_watch_topic` | ✅ | — | Full Pub/Sub topic resource path |
+| `categories` | ✅ | — | List of email categories (see below) |
+| `max_emails_per_poll` | ❌ | `10` | Max emails per Pub/Sub pull cycle |
+| `log_level` | ❌ | `INFO` | Verbosity: `DEBUG` / `INFO` / `WARNING` / `ERROR` |
+| `dry_run` | ❌ | `false` | Classify without applying labels |
+
+### AI provider
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `ai_provider` | ❌ | `copilot` | AI backend: `copilot` or `openai` |
+| `copilot_model` | ❌ | `gpt-4o` | Model used when `ai_provider = copilot` |
+| `openai_model` | ❌ | `gpt-4o` | Model used when `ai_provider = openai` |
+
+**`copilot`** sends requests to `https://api.githubcopilot.com` using
+`GITHUB_TOKEN`.  Supported models include `gpt-4o`, `gpt-4o-mini`, and
+`o3-mini`.
+
+**`openai`** uses the official OpenAI API (or any compatible endpoint via
+`OPENAI_BASE_URL`) with `OPENAI_API_KEY`.
+
+### State backend
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `state_backend` | ❌ | `json` | Persistence backend: `json`, `sqlite`, or `postgres` |
+
+| Backend | Env var needed | Notes |
 |---|---|---|
-| `google_project_id` | ✅ | GCP project ID |
-| `pubsub_subscription` | ✅ | Full Pub/Sub subscription resource path |
-| `gmail_watch_topic` | ✅ | Full Pub/Sub topic resource path |
-| `categories` | ✅ | List of email categories (see below) |
-| `max_emails_per_poll` | ❌ | Max emails per Pub/Sub pull (default: 10) |
-| `log_level` | ❌ | Logging verbosity: DEBUG/INFO/WARNING/ERROR (default: INFO) |
-| `dry_run` | ❌ | Classify without applying labels (default: false) |
+| `json` | — | Atomic JSON file at `STATE_FILE_PATH` (default `/data/state.json`) |
+| `sqlite` | — | SQLite database at `SQLITE_DB_PATH` (default `/data/gmail_sorter.db`) |
+| `postgres` | `DATABASE_URL` | PostgreSQL connection URL; enable the `postgres` service in `docker-compose.yml` |
 
 The config file is mounted read-only into the container.  Changes take
 effect after a container restart:
@@ -264,11 +297,11 @@ entry has:
 
 ```yaml
 categories:
-  - name: "work"          # Unique lowercase identifier; returned by Claude
+  - name: "work"              # Unique lowercase identifier
     label: "AI-Sorted/Work"  # Gmail label (/ for nesting, created if missing)
-    description: >       # Shown to Claude — be specific and descriptive
+    description: >           # Shown to the AI — be specific and descriptive
       Professional emails: meeting invites, project updates, client comms.
-    keywords:            # Optional hints for the AI
+    keywords:                # Optional hints for the AI
       - meeting
       - invoice
 ```
@@ -287,7 +320,7 @@ starting the agent, and watching the logs.  The log line
 [INFO] Classification result: 'work' (subject: 'Q3 budget review')
 ```
 
-shows what label *would* be applied without `dry_run` changing anything.
+shows what label *would* be applied without actually changing anything.
 Switch `dry_run: false` when satisfied.
 
 ---
@@ -297,16 +330,16 @@ Switch `dry_run: false` when satisfied.
 All output is written to `stdout` in this format:
 
 ```
-2026-03-28 09:15:32 [INFO] src.main: Processing message 18e1a2b3c4 | From: boss@company.com | Subject: Q3 review
-2026-03-28 09:15:33 [INFO] src.classifier: Classification result: 'work' (subject: 'Q3 review')
-2026-03-28 09:15:33 [INFO] src.main: Labelled message 18e1a2b3c4 as 'work' (label: 'AI-Sorted/Work').
+2026-03-31 09:15:32 [INFO] src.main: Processing message 18e1a2b3c4 | From: boss@company.com | Subject: Q3 review
+2026-03-31 09:15:33 [INFO] src.classifier: [copilot] Classification result: 'work' (subject: 'Q3 review')
+2026-03-31 09:15:33 [INFO] src.main: Labelled message 18e1a2b3c4 as 'work' (label: 'AI-Sorted/Work').
 ```
 
 ### Log levels
 
 | Level | Use case |
 |---|---|
-| `DEBUG` | Verbose output including all API calls and cache decisions |
+| `DEBUG` | Verbose output including all API calls |
 | `INFO` | Normal operation — one line per email processed (recommended) |
 | `WARNING` | Non-fatal issues (transient API errors, unknown classifications) |
 | `ERROR` | Failures that prevented an email from being labelled |
@@ -334,7 +367,7 @@ docker-compose logs sorter > sorter.log
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env        # fill in ANTHROPIC_API_KEY
+cp .env.example .env        # fill in GITHUB_TOKEN
 python -m src.main --setup  # authorize OAuth2 (using local credentials path)
 python -m src.main          # run locally
 ```
@@ -349,29 +382,59 @@ STATE_FILE_PATH=./data/state.json
 CONFIG_PATH=./config/config.yaml
 ```
 
-### Project structure
+### Using PostgreSQL locally
+
+1. Start a local Postgres instance (e.g. via Docker):
+
+   ```bash
+   docker run -d --name pg \
+     -e POSTGRES_USER=sorter -e POSTGRES_PASSWORD=sorter \
+     -e POSTGRES_DB=gmail_sorter \
+     -p 5432:5432 postgres:16-alpine
+   ```
+
+2. Set in `.env`:
+
+   ```env
+   DATABASE_URL=postgresql://sorter:sorter@localhost:5432/gmail_sorter
+   ```
+
+3. Set in `config/config.yaml`:
+
+   ```yaml
+   state_backend: "postgres"
+   ```
+
+---
+
+## Project Structure
 
 ```
 gmail-sorter/
 ├── src/
-│   ├── __init__.py          # Package init
-│   ├── main.py              # Entry point, orchestration, CLI
-│   ├── auth.py              # Google OAuth2 flow and token management
-│   ├── gmail_client.py      # Gmail API wrapper (history, labels, watch)
-│   ├── pubsub_client.py     # Cloud Pub/Sub pull subscriber
-│   ├── classifier.py        # Claude AI email classifier
-│   ├── config_loader.py     # YAML config loading and validation
-│   ├── state_manager.py     # Persistent history cursor and watch expiry
-│   └── label_manager.py     # Gmail label cache and creation
+│   ├── __init__.py              # Package init
+│   ├── main.py                  # Entry point, orchestration, CLI
+│   ├── auth.py                  # Google OAuth2 flow and token management
+│   ├── gmail_client.py          # Gmail API wrapper (history, labels, watch)
+│   ├── pubsub_client.py         # Cloud Pub/Sub pull subscriber
+│   ├── classifier.py            # AI email classifier (Copilot + OpenAI backends)
+│   ├── config_loader.py         # YAML config loading and validation
+│   ├── label_manager.py         # Gmail label cache and creation
+│   └── state_manager/           # Pluggable state persistence
+│       ├── __init__.py          # create_state_manager() factory
+│       ├── base.py              # BaseStateManager abstract class
+│       ├── json_backend.py      # Atomic JSON file (default)
+│       ├── sqlite_backend.py    # Local SQLite database
+│       └── postgres_backend.py  # PostgreSQL database
 ├── config/
-│   └── config.yaml          # Your categories and settings
+│   └── config.yaml              # Your categories and settings
 ├── credentials/
-│   └── credentials.json     # OAuth2 client secrets (gitignored)
-├── data/                    # Runtime state (gitignored, mounted as volume)
-│   ├── token.json           # OAuth2 access + refresh tokens
-│   └── state.json           # Gmail history ID + watch expiry
+│   └── credentials.json         # OAuth2 client secrets (gitignored)
+├── data/                        # Runtime state (gitignored, mounted as volume)
+│   ├── token.json               # OAuth2 access + refresh tokens
+│   └── state.json               # Gmail history ID + watch expiry (json backend)
 ├── scripts/
-│   └── setup_gcp.sh         # Automated GCP setup script
+│   └── setup_gcp.sh             # Automated GCP setup script
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt
@@ -416,9 +479,19 @@ lowering `max_emails_per_poll` in the config.
 
 ### Classification always returns `None`
 
-Enable `log_level: "DEBUG"` and check the raw Claude response in the logs.
+Enable `log_level: "DEBUG"` and check the raw AI response in the logs.
 Common causes: the categories list is empty, descriptions are too vague, or
-the email body is entirely in a language Claude doesn't recognize.
+the `GITHUB_TOKEN` does not have an active Copilot subscription attached.
+If using `ai_provider: openai`, verify `OPENAI_API_KEY` is valid.
+
+### "psycopg2 is required" error
+
+You have `state_backend: "postgres"` set but `psycopg2-binary` is not
+installed.  It is included in `requirements.txt`; rebuild the Docker image:
+
+```bash
+docker-compose build --no-cache sorter
+```
 
 ---
 
@@ -426,7 +499,9 @@ the email body is entirely in a language Claude doesn't recognize.
 
 - **credentials.json** and **token.json** must never be committed to git.
   They are in `.gitignore`.
+- **GITHUB_TOKEN** (or `OPENAI_API_KEY`) must never be committed to git.
+  Store it only in your `.env` file, which is also in `.gitignore`.
 - The Docker container runs as a non-root user (`uid=1000`).
 - The credentials directory is mounted read-only inside the container.
 - No inbound network ports are opened; the agent only makes outbound
-  connections to the Gmail API, Pub/Sub, and Anthropic's API.
+  connections to the Gmail API, Pub/Sub, and the configured AI provider.
