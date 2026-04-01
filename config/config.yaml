@@ -58,19 +58,20 @@ state_backend: "json"
 # ---------------------------------------------------------------------------
 
 # Which AI provider to use for email classification.
-# Options: "anthropic" (default) | "openai"
+# Options: "copilot" (default) | "openai"
 #
 # Set the corresponding API key in your .env file:
-#   anthropic → ANTHROPIC_API_KEY
-#   openai    → OPENAI_API_KEY
+#   copilot → GITHUB_TOKEN  (personal access token with Copilot access)
+#   openai  → OPENAI_API_KEY
 #
 # To use an OpenAI-compatible third-party endpoint (Azure OpenAI, OpenRouter,
-# Ollama, etc.) also set OPENAI_BASE_URL in your .env file.
-ai_provider: "anthropic"
+# Ollama, etc.) choose "openai" and also set OPENAI_BASE_URL in your .env file.
+ai_provider: "copilot"
 
-# Model to use when ai_provider = "anthropic".
-# See https://docs.anthropic.com/en/docs/about-claude/models
-anthropic_model: "claude-opus-4-6"
+# Model to use when ai_provider = "copilot".
+# Any model supported by GitHub Copilot's chat-completion API, e.g.:
+#   gpt-4o | gpt-4o-mini | o3-mini
+copilot_model: "gpt-4o"
 
 # Model to use when ai_provider = "openai".
 # Any chat-completion model accepted by your endpoint, e.g.:

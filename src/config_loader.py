@@ -57,11 +57,11 @@ class Config:
     dry_run: bool = False
     """When True, classify emails but do not apply any Gmail labels."""
 
-    ai_provider: str = "anthropic"
-    """AI provider to use for classification: 'anthropic' or 'openai'."""
+    ai_provider: str = "copilot"
+    """AI provider to use for classification: 'copilot' or 'openai'."""
 
-    anthropic_model: str = "claude-opus-4-6"
-    """Anthropic model identifier used when ai_provider is 'anthropic'."""
+    copilot_model: str = "gpt-4o"
+    """Model identifier used when ai_provider is 'copilot'."""
 
     openai_model: str = "gpt-4o"
     """OpenAI model identifier used when ai_provider is 'openai'."""
@@ -143,10 +143,10 @@ def load_config(config_path: str) -> Config:
         )
 
     # Validate ai_provider value.
-    ai_provider = str(raw.get("ai_provider", "anthropic")).strip().lower()
-    if ai_provider not in {"anthropic", "openai"}:
+    ai_provider = str(raw.get("ai_provider", "copilot")).strip().lower()
+    if ai_provider not in {"copilot", "openai"}:
         raise ValueError(
-            f"'ai_provider' must be 'anthropic' or 'openai', got: {ai_provider!r}"
+            f"'ai_provider' must be 'copilot' or 'openai', got: {ai_provider!r}"
         )
 
     # Validate state_backend value.
@@ -166,7 +166,7 @@ def load_config(config_path: str) -> Config:
         log_level=str(raw.get("log_level", "INFO")).upper(),
         dry_run=bool(raw.get("dry_run", False)),
         ai_provider=ai_provider,
-        anthropic_model=str(raw.get("anthropic_model", "claude-opus-4-6")).strip(),
+        copilot_model=str(raw.get("copilot_model", "gpt-4o")).strip(),
         openai_model=str(raw.get("openai_model", "gpt-4o")).strip(),
         state_backend=state_backend,
     )

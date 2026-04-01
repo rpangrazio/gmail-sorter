@@ -2,8 +2,8 @@
 # Gmail AI Sorter — Python Dependencies
 # =============================================================================
 
-# AI provider SDKs (install both; only the configured provider is used at runtime)
-anthropic>=0.40.0
+# AI provider SDKs
+# openai is used for both the 'copilot' and 'openai' backends
 openai>=1.30.0
 
 # Google API client libraries

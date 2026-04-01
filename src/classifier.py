@@ -3,9 +3,9 @@ AI-powered email classifier with pluggable provider backends.
 
 Supports two classification backends, selected via ``ai_provider`` in config:
 
-- **anthropic** (default): Uses ``claude-opus-4-6`` with adaptive thinking.
-  The system prompt is sent with ``cache_control: {"type": "ephemeral"}`` for
-  up to ~90% cost reduction on repeated calls within a 5-minute window.
+- **copilot** (default): Uses GitHub Copilot's OpenAI-compatible chat-completion
+  API at ``https://api.githubcopilot.com``.  Requires a GitHub personal access
+  token (``GITHUB_TOKEN``) with Copilot access.
 
 - **openai**: Uses any OpenAI chat-completion model (default ``gpt-4o``).
   Pass ``OPENAI_API_KEY`` and optionally ``OPENAI_BASE_URL`` to point at a
@@ -13,7 +13,7 @@ Supports two classification backends, selected via ``ai_provider`` in config:
 
 Public interface — call :func:`create_classifier` to obtain the right backend::
 
-    classifier = create_classifier(config, anthropic_api_key="...", openai_api_key="...")
+    classifier = create_classifier(config, github_token="...", openai_api_key="...")
     category = classifier.classify(email_data)
 """
 
@@ -22,14 +22,12 @@ import re
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
-import anthropic
-
 from src.config_loader import Category, Config
 
 logger = logging.getLogger(__name__)
 
 # Default models per provider.
-_DEFAULT_ANTHROPIC_MODEL = "claude-opus-4-6"
+_DEFAULT_COPILOT_MODEL = "gpt-4o"
 _DEFAULT_OPENAI_MODEL = "gpt-4o"
 
 # Maximum tokens allocated for the classification response.
@@ -77,7 +75,7 @@ class BaseClassifier(ABC):
     @property
     @abstractmethod
     def provider_name(self) -> str:
-        """Human-readable name of the AI provider (e.g. ``"anthropic"``)."""
+        """Human-readable name of the AI provider (e.g. ``"copilot"``)."""
 
     # ------------------------------------------------------------------
     # Shared helpers available to all subclasses
@@ -134,76 +132,87 @@ class BaseClassifier(ABC):
 
 
 # ---------------------------------------------------------------------------
-# Anthropic backend
+# GitHub Copilot backend
 # ---------------------------------------------------------------------------
 
-class AnthropicClassifier(BaseClassifier):
+class CopilotClassifier(BaseClassifier):
     """
-    Email classifier backed by Anthropic Claude.
+    Email classifier backed by GitHub Copilot's chat-completion API.
 
-    Uses ``claude-opus-4-6`` with adaptive thinking and prompt caching.
-    The system prompt (containing all category definitions) is marked with
-    ``cache_control: {"type": "ephemeral"}`` so that the API can cache it
-    across successive calls, reducing cost and latency.
+    GitHub Copilot exposes an OpenAI-compatible chat-completions endpoint at
+    ``https://api.githubcopilot.com``.  Authentication uses a GitHub personal
+    access token (classic) or fine-grained token with Copilot access, passed
+    via the ``GITHUB_TOKEN`` environment variable.
+
+    The ``openai`` Python package is used as the HTTP client; no separate
+    Copilot SDK is required.
 
     Args:
-        api_key: Anthropic API key (``ANTHROPIC_API_KEY``).
+        github_token: GitHub personal access token with Copilot access.
         config: Application configuration.
-        model: Claude model identifier.  Defaults to ``claude-opus-4-6``.
+        model: Chat-completion model name supported by Copilot.
+            Defaults to ``gpt-4o``.
     """
+
+    _BASE_URL = "https://api.githubcopilot.com"
 
     def __init__(
         self,
-        api_key: str,
+        github_token: str,
         config: Config,
-        model: str = _DEFAULT_ANTHROPIC_MODEL,
+        model: str = _DEFAULT_COPILOT_MODEL,
     ) -> None:
         super().__init__(config)
-        self._client = anthropic.Anthropic(api_key=api_key)
+        try:
+            from openai import OpenAI  # noqa: PLC0415
+        except ImportError as exc:
+            raise ImportError(
+                "The 'openai' package is required to use the Copilot provider.\n"
+                "Install it with: pip install openai"
+            ) from exc
+
+        self._client = OpenAI(
+            api_key=github_token,
+            base_url=self._BASE_URL,
+        )
         self._model = model
-        logger.info("Anthropic classifier initialised (model: %s).", model)
+        logger.info(
+            "GitHub Copilot classifier initialised (model: %s, endpoint: %s).",
+            model,
+            self._BASE_URL,
+        )
 
     @property
     def provider_name(self) -> str:
-        return "anthropic"
+        return "copilot"
 
     def classify(self, email_data: Dict[str, Any]) -> Optional[str]:
         """
-        Classify *email_data* using Claude with adaptive thinking.
+        Classify *email_data* using the GitHub Copilot chat-completion API.
 
         Raises:
-            anthropic.APIError: On unrecoverable Anthropic API failures.
+            openai.OpenAIError: On unrecoverable API failures.
         """
         user_message = _format_email_for_prompt(email_data)
         subject = email_data.get("subject", "")
 
         logger.debug(
-            "[anthropic] Classifying email — subject: %r, from: %r",
+            "[copilot] Classifying email — subject: %r, from: %r",
             subject,
             email_data.get("from_"),
         )
 
-        with self._client.messages.stream(
+        response = self._client.chat.completions.create(
             model=self._model,
             max_tokens=_MAX_TOKENS,
-            thinking={"type": "adaptive"},
-            system=[
-                {
-                    "type": "text",
-                    "text": self._system_prompt,
-                    # Cache the system prompt — identical across every call.
-                    "cache_control": {"type": "ephemeral"},
-                }
+            temperature=0,  # Deterministic output for classification
+            messages=[
+                {"role": "system", "content": self._system_prompt},
+                {"role": "user", "content": user_message},
             ],
-            messages=[{"role": "user", "content": user_message}],
-        ) as stream:
-            response = stream.get_final_message()
+        )
 
-        raw_answer = ""
-        for block in response.content:
-            if block.type == "text":
-                raw_answer = block.text.strip().lower()
-                break
+        raw_answer = (response.choices[0].message.content or "").strip().lower()
 
         category = self._parse_category(raw_answer)
         self._log_result(category, subject)
@@ -241,8 +250,6 @@ class OpenAIClassifier(BaseClassifier):
         base_url: Optional[str] = None,
     ) -> None:
         super().__init__(config)
-        # Import lazily so the openai package is only required when actually
-        # used, keeping the error message actionable.
         try:
             from openai import OpenAI  # noqa: PLC0415
         except ImportError as exc:
@@ -303,7 +310,7 @@ class OpenAIClassifier(BaseClassifier):
 
 def create_classifier(
     config: Config,
-    anthropic_api_key: str = "",
+    github_token: str = "",
     openai_api_key: str = "",
     openai_base_url: Optional[str] = None,
 ) -> BaseClassifier:
@@ -312,14 +319,14 @@ def create_classifier(
 
     The active provider is determined by ``config.ai_provider``:
 
-    - ``"anthropic"`` → :class:`AnthropicClassifier`
-    - ``"openai"``    → :class:`OpenAIClassifier`
+    - ``"copilot"`` → :class:`CopilotClassifier`
+    - ``"openai"``  → :class:`OpenAIClassifier`
 
     Args:
         config: Application configuration (contains ``ai_provider`` and
             the relevant model field).
-        anthropic_api_key: Anthropic API key; required when provider is
-            ``"anthropic"``.
+        github_token: GitHub personal access token; required when provider
+            is ``"copilot"``.
         openai_api_key: OpenAI API key; required when provider is
             ``"openai"``.
         openai_base_url: Optional base URL for OpenAI-compatible endpoints.
@@ -333,15 +340,15 @@ def create_classifier(
     """
     provider = config.ai_provider.lower()
 
-    if provider == "anthropic":
-        if not anthropic_api_key:
+    if provider == "copilot":
+        if not github_token:
             raise ValueError(
-                "ANTHROPIC_API_KEY is required when ai_provider is 'anthropic'."
+                "GITHUB_TOKEN is required when ai_provider is 'copilot'."
             )
-        return AnthropicClassifier(
-            api_key=anthropic_api_key,
+        return CopilotClassifier(
+            github_token=github_token,
             config=config,
-            model=config.anthropic_model,
+            model=config.copilot_model,
         )
 
     if provider == "openai":
@@ -358,7 +365,7 @@ def create_classifier(
 
     raise ValueError(
         f"Unknown ai_provider {provider!r}. "
-        "Valid values are 'anthropic' and 'openai'."
+        "Valid values are 'copilot' and 'openai'."
     )
 
 
