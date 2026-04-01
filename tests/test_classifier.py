@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.classifier import (
-    AnthropicClassifier,
     BaseClassifier,
+    CopilotClassifier,
     OpenAIClassifier,
     _build_system_prompt,
     _format_email_for_prompt,
@@ -19,7 +19,7 @@ from src.config_loader import Category, Config
 # Fixtures / helpers
 # ---------------------------------------------------------------------------
 
-def make_config(ai_provider: str = "anthropic") -> Config:
+def make_config(ai_provider: str = "copilot") -> Config:
     return Config(
         google_project_id="proj",
         pubsub_subscription="projects/proj/subscriptions/sub",
@@ -118,86 +118,74 @@ def test_log_result_none_category(caplog):
 
 
 # ---------------------------------------------------------------------------
-# AnthropicClassifier
+# CopilotClassifier
 # ---------------------------------------------------------------------------
 
-def _make_anthropic_mock(text_response: str):
-    """Return (mock_client, mock_stream) configured for AnthropicClassifier."""
-    mock_block = MagicMock()
-    mock_block.type = "text"
-    mock_block.text = text_response
-
-    mock_response = MagicMock()
-    mock_response.content = [mock_block]
-
-    mock_stream = MagicMock()
-    mock_stream.get_final_message.return_value = mock_response
-    mock_stream.__enter__ = MagicMock(return_value=mock_stream)
-    mock_stream.__exit__ = MagicMock(return_value=False)
-
+def _make_copilot_mock(response_text):
+    """Return (mock_module, mock_client) configured for CopilotClassifier."""
+    mock_module = MagicMock()
     mock_client = MagicMock()
-    mock_client.messages.stream.return_value = mock_stream
-
-    return mock_client, mock_stream
-
-
-def test_anthropic_classifier_init():
-    with patch("src.classifier.anthropic.Anthropic") as mock_cls:
-        clf = AnthropicClassifier(api_key="test-key", config=make_config())
-    mock_cls.assert_called_once_with(api_key="test-key")
-    assert clf.provider_name == "anthropic"
+    mock_module.OpenAI.return_value = mock_client
+    mock_response = MagicMock()
+    mock_response.choices[0].message.content = response_text
+    mock_client.chat.completions.create.return_value = mock_response
+    return mock_module, mock_client
 
 
-def test_anthropic_classifier_classify_match():
-    mock_client, _ = _make_anthropic_mock("work")
-    with patch("src.classifier.anthropic.Anthropic", return_value=mock_client):
-        clf = AnthropicClassifier(api_key="key", config=make_config())
+def test_copilot_classifier_init():
+    mock_module = MagicMock()
+    with patch.dict("sys.modules", {"openai": mock_module}):
+        clf = CopilotClassifier(github_token="ghp_test", config=make_config())
+    mock_module.OpenAI.assert_called_with(
+        api_key="ghp_test",
+        base_url="https://api.githubcopilot.com",
+    )
+    assert clf.provider_name == "copilot"
+
+
+def test_copilot_classifier_classify_match():
+    mock_module, _ = _make_copilot_mock("work")
+    with patch.dict("sys.modules", {"openai": mock_module}):
+        clf = CopilotClassifier(github_token="ghp_test", config=make_config())
         result = clf.classify(EMAIL_DATA)
     assert result == "work"
 
 
-def test_anthropic_classifier_classify_none():
-    mock_client, _ = _make_anthropic_mock("none")
-    with patch("src.classifier.anthropic.Anthropic", return_value=mock_client):
-        clf = AnthropicClassifier(api_key="key", config=make_config())
+def test_copilot_classifier_classify_none():
+    mock_module, _ = _make_copilot_mock("none")
+    with patch.dict("sys.modules", {"openai": mock_module}):
+        clf = CopilotClassifier(github_token="ghp_test", config=make_config())
         result = clf.classify(EMAIL_DATA)
     assert result is None
 
 
-def test_anthropic_classifier_no_text_block():
-    """Response blocks contain only 'thinking', no 'text' block → empty raw."""
-    mock_block = MagicMock()
-    mock_block.type = "thinking"  # Not "text"
-
-    mock_response = MagicMock()
-    mock_response.content = [mock_block]
-
-    mock_stream = MagicMock()
-    mock_stream.get_final_message.return_value = mock_response
-    mock_stream.__enter__ = MagicMock(return_value=mock_stream)
-    mock_stream.__exit__ = MagicMock(return_value=False)
-
-    mock_client = MagicMock()
-    mock_client.messages.stream.return_value = mock_stream
-
-    with patch("src.classifier.anthropic.Anthropic", return_value=mock_client):
-        clf = AnthropicClassifier(api_key="key", config=make_config())
+def test_copilot_classifier_classify_none_content():
+    """message.content is None → empty string → unrecognized → None."""
+    mock_module, _ = _make_copilot_mock(None)
+    with patch.dict("sys.modules", {"openai": mock_module}):
+        clf = CopilotClassifier(github_token="ghp_test", config=make_config())
         result = clf.classify(EMAIL_DATA)
+    assert result is None
 
-    assert result is None  # "" → unrecognized → None
+
+def test_copilot_classifier_import_error():
+    with patch.dict("sys.modules", {"openai": None}):
+        with pytest.raises(ImportError, match="openai"):
+            CopilotClassifier(github_token="ghp_test", config=make_config())
 
 
-def test_anthropic_classifier_custom_model():
-    with patch("src.classifier.anthropic.Anthropic"):
-        clf = AnthropicClassifier(api_key="key", config=make_config(), model="claude-3-sonnet")
-    assert clf._model == "claude-3-sonnet"
+def test_copilot_classifier_custom_model():
+    mock_module = MagicMock()
+    with patch.dict("sys.modules", {"openai": mock_module}):
+        clf = CopilotClassifier(github_token="ghp_test", config=make_config(), model="o3-mini")
+    assert clf._model == "o3-mini"
 
 
 # ---------------------------------------------------------------------------
 # OpenAIClassifier
 # ---------------------------------------------------------------------------
 
-def _make_openai_module(response_text: str):
+def _make_openai_module(response_text):
     mock_module = MagicMock()
     mock_client = MagicMock()
     mock_module.OpenAI.return_value = mock_client
@@ -260,10 +248,11 @@ def test_openai_classifier_custom_model():
 # create_classifier factory
 # ---------------------------------------------------------------------------
 
-def test_create_classifier_anthropic():
-    with patch("src.classifier.anthropic.Anthropic"):
-        clf = create_classifier(make_config("anthropic"), anthropic_api_key="key")
-    assert isinstance(clf, AnthropicClassifier)
+def test_create_classifier_copilot():
+    mock_module = MagicMock()
+    with patch.dict("sys.modules", {"openai": mock_module}):
+        clf = create_classifier(make_config("copilot"), github_token="ghp_test")
+    assert isinstance(clf, CopilotClassifier)
 
 
 def test_create_classifier_openai():
@@ -296,9 +285,9 @@ def test_create_classifier_openai_empty_base_url():
     assert isinstance(clf, OpenAIClassifier)
 
 
-def test_create_classifier_missing_anthropic_key():
-    with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
-        create_classifier(make_config("anthropic"), anthropic_api_key="")
+def test_create_classifier_missing_github_token():
+    with pytest.raises(ValueError, match="GITHUB_TOKEN"):
+        create_classifier(make_config("copilot"), github_token="")
 
 
 def test_create_classifier_missing_openai_key():
@@ -307,10 +296,10 @@ def test_create_classifier_missing_openai_key():
 
 
 def test_create_classifier_unknown_provider():
-    config = make_config("anthropic")
+    config = make_config("copilot")
     config.ai_provider = "gemini"
     with pytest.raises(ValueError, match="Unknown"):
-        create_classifier(config, anthropic_api_key="key")
+        create_classifier(config, github_token="key")
 
 
 # ---------------------------------------------------------------------------
@@ -359,6 +348,5 @@ def test_format_email_for_prompt_uses_snippet_when_no_body():
 def test_format_email_for_prompt_body_truncated_at_1500():
     email = {**EMAIL_DATA, "body": "x" * 3000}
     result = _format_email_for_prompt(email)
-    # Body capped at 1500 chars, so result shouldn't contain 3000 x's
     assert "x" * 3000 not in result
     assert "x" * 1500 in result

@@ -48,9 +48,10 @@ def test_load_config_happy_path(tmp_path):
     assert config.max_emails_per_poll == 10
     assert config.log_level == "INFO"
     assert config.dry_run is False
-    assert config.ai_provider == "anthropic"
-    assert config.anthropic_model == "claude-opus-4-6"
+    assert config.ai_provider == "copilot"
+    assert config.copilot_model == "gpt-4o"
     assert config.openai_model == "gpt-4o"
+    assert config.state_backend == "json"
 
 
 def test_load_config_custom_values(tmp_path):
@@ -60,16 +61,18 @@ def test_load_config_custom_values(tmp_path):
         "log_level": "debug",
         "dry_run": True,
         "ai_provider": "openai",
-        "anthropic_model": "claude-3-sonnet",
+        "copilot_model": "o3-mini",
         "openai_model": "gpt-4o-mini",
+        "state_backend": "sqlite",
     }
     config = load_config(write_yaml(tmp_path, data))
     assert config.max_emails_per_poll == 25
     assert config.log_level == "DEBUG"
     assert config.dry_run is True
     assert config.ai_provider == "openai"
-    assert config.anthropic_model == "claude-3-sonnet"
+    assert config.copilot_model == "o3-mini"
     assert config.openai_model == "gpt-4o-mini"
+    assert config.state_backend == "sqlite"
 
 
 def test_load_config_no_keywords(tmp_path):
@@ -193,6 +196,18 @@ def test_load_config_short_description(tmp_path):
 def test_load_config_invalid_ai_provider(tmp_path):
     data = {**VALID_CONFIG, "ai_provider": "gemini"}
     with pytest.raises(ValueError, match="ai_provider"):
+        load_config(write_yaml(tmp_path, data))
+
+
+def test_load_config_state_backend_postgres(tmp_path):
+    data = {**VALID_CONFIG, "state_backend": "postgres"}
+    config = load_config(write_yaml(tmp_path, data))
+    assert config.state_backend == "postgres"
+
+
+def test_load_config_invalid_state_backend(tmp_path):
+    data = {**VALID_CONFIG, "state_backend": "redis"}
+    with pytest.raises(ValueError, match="state_backend"):
         load_config(write_yaml(tmp_path, data))
 
 

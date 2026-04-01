@@ -66,6 +66,8 @@ ENV PYTHONUNBUFFERED=1 \
     GOOGLE_CREDENTIALS_PATH=/credentials/credentials.json \
     GOOGLE_TOKEN_PATH=/data/token.json \
     STATE_FILE_PATH=/data/state.json \
+    SQLITE_DB_PATH=/data/gmail_sorter.db \
+    DATABASE_URL="" \
     CONFIG_PATH=/app/config/config.yaml
 
 # Health check: verify the Python module can be imported without errors.
