@@ -515,5 +515,5 @@ def _configure_logging(level_str: str) -> None:
         logging.getLogger(noisy_logger).setLevel(logging.WARNING)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()
