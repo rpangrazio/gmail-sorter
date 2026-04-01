@@ -23,3 +23,7 @@ python-dotenv>=1.0.0
 
 # PostgreSQL driver — required only when state_backend = "postgres"
 psycopg2-binary>=2.9.9
+
+# Cryptography — pinned explicitly so the pip wheel takes precedence over any
+# system-installed version (avoids pyo3/cffi ABI conflicts on some distros).
+cryptography>=42.0.0

@@ -14,6 +14,7 @@ from src.main import (
     _ProcessingContext,
     _bootstrap_history_id,
     _configure_logging,
+    _create_state_manager,
     _parse_args,
     _watch_renewal_loop,
     _DEDUP_MAX_SIZE,
@@ -25,11 +26,12 @@ from src.main import (
 # Shared fixtures
 # ---------------------------------------------------------------------------
 
-def make_config(ai_provider="anthropic", dry_run=False):
+def make_config(ai_provider="copilot", dry_run=False):
     config = MagicMock(spec=Config)
     config.ai_provider = ai_provider
-    config.anthropic_model = "claude-opus-4-6"
+    config.copilot_model = "gpt-4o"
     config.openai_model = "gpt-4o"
+    config.state_backend = "json"
     config.dry_run = dry_run
     config.log_level = "INFO"
     config.pubsub_subscription = "projects/p/subscriptions/s"
@@ -385,7 +387,7 @@ PATCH_TARGETS = {
     "auth_cls": "src.main.GoogleAuthManager",
     "build": "src.main.build",
     "gmail_client_cls": "src.main.GmailClient",
-    "state_manager_cls": "src.main.StateManager",
+    "create_state_manager": "src.main._create_state_manager",
     "label_manager_cls": "src.main.LabelManager",
     "create_classifier": "src.main.create_classifier",
     "pubsub_client_cls": "src.main.PubSubClient",
@@ -404,7 +406,7 @@ def run_main_with_patches(
     if argv is None:
         argv = ["gmail-sorter"]
     if env_overrides is None:
-        env_overrides = {"ANTHROPIC_API_KEY": "key", "OPENAI_API_KEY": ""}
+        env_overrides = {"GITHUB_TOKEN": "ghp_key", "OPENAI_API_KEY": ""}
 
     mock_creds = MagicMock()
     mock_auth = MagicMock()
@@ -427,7 +429,7 @@ def run_main_with_patches(
         patch(PATCH_TARGETS["auth_cls"], return_value=mock_auth),
         patch(PATCH_TARGETS["build"], return_value=MagicMock()),
         patch(PATCH_TARGETS["gmail_client_cls"], return_value=MagicMock()),
-        patch(PATCH_TARGETS["state_manager_cls"], return_value=MagicMock()),
+        patch(PATCH_TARGETS["create_state_manager"], return_value=MagicMock()),
         patch(PATCH_TARGETS["label_manager_cls"], return_value=MagicMock()),
         patch(PATCH_TARGETS["create_classifier"], return_value=MagicMock()),
         patch(PATCH_TARGETS["pubsub_client_cls"], return_value=mock_pubsub),
@@ -438,12 +440,12 @@ def run_main_with_patches(
 
 
 def test_main_normal_flow_keyboard_interrupt():
-    config = make_config(ai_provider="anthropic")
+    config = make_config(ai_provider="copilot")
     run_main_with_patches(config)  # KeyboardInterrupt is caught gracefully
 
 
 def test_main_dry_run_log(caplog):
-    config = make_config(ai_provider="anthropic", dry_run=True)
+    config = make_config(ai_provider="copilot", dry_run=True)
     with caplog.at_level(logging.WARNING, logger="src.main"):
         run_main_with_patches(config)
     assert "DRY RUN" in caplog.text
@@ -453,15 +455,15 @@ def test_main_openai_provider():
     config = make_config(ai_provider="openai")
     run_main_with_patches(
         config,
-        env_overrides={"ANTHROPIC_API_KEY": "", "OPENAI_API_KEY": "oai-key"},
+        env_overrides={"GITHUB_TOKEN": "", "OPENAI_API_KEY": "oai-key"},
     )
 
 
-def test_main_missing_anthropic_key_exits():
-    config = make_config(ai_provider="anthropic")
+def test_main_missing_github_token_exits():
+    config = make_config(ai_provider="copilot")
     with (
         patch("sys.argv", ["gmail-sorter"]),
-        patch.dict("os.environ", {"ANTHROPIC_API_KEY": "", "OPENAI_API_KEY": ""}, clear=False),
+        patch.dict("os.environ", {"GITHUB_TOKEN": "", "OPENAI_API_KEY": ""}, clear=False),
         patch(PATCH_TARGETS["load_dotenv"]),
         patch(PATCH_TARGETS["load_config"], return_value=config),
         patch(PATCH_TARGETS["configure_logging"]),
@@ -474,7 +476,7 @@ def test_main_missing_openai_key_exits():
     config = make_config(ai_provider="openai")
     with (
         patch("sys.argv", ["gmail-sorter"]),
-        patch.dict("os.environ", {"ANTHROPIC_API_KEY": "", "OPENAI_API_KEY": ""}, clear=False),
+        patch.dict("os.environ", {"GITHUB_TOKEN": "", "OPENAI_API_KEY": ""}, clear=False),
         patch(PATCH_TARGETS["load_dotenv"]),
         patch(PATCH_TARGETS["load_config"], return_value=config),
         patch(PATCH_TARGETS["configure_logging"]),
@@ -484,13 +486,13 @@ def test_main_missing_openai_key_exits():
 
 
 def test_main_setup_flag():
-    config = make_config(ai_provider="anthropic")
+    config = make_config(ai_provider="copilot")
     mock_auth = MagicMock()
     mock_auth.get_credentials.return_value = MagicMock()
 
     with (
         patch("sys.argv", ["gmail-sorter", "--setup"]),
-        patch.dict("os.environ", {"ANTHROPIC_API_KEY": "key"}, clear=False),
+        patch.dict("os.environ", {"GITHUB_TOKEN": "ghp_key"}, clear=False),
         patch(PATCH_TARGETS["load_dotenv"]),
         patch(PATCH_TARGETS["load_config"], return_value=config),
         patch(PATCH_TARGETS["configure_logging"]),
@@ -501,13 +503,61 @@ def test_main_setup_flag():
     mock_auth.get_credentials.assert_called_once()
 
 
+def test_main_sqlite_backend():
+    config = make_config(ai_provider="copilot")
+    config.state_backend = "sqlite"
+    run_main_with_patches(config, env_overrides={"GITHUB_TOKEN": "ghp_key", "OPENAI_API_KEY": ""})
+
+
+def test_main_postgres_backend():
+    config = make_config(ai_provider="copilot")
+    config.state_backend = "postgres"
+    run_main_with_patches(
+        config,
+        env_overrides={"GITHUB_TOKEN": "ghp_key", "OPENAI_API_KEY": "", "DATABASE_URL": "postgresql://u:p@h/db"},
+    )
+
+
+def test_create_state_manager_json():
+    sm = _create_state_manager("json", "/tmp/s.json", "/tmp/s.db", "")
+    from src.state_manager import JsonStateManager
+    assert isinstance(sm, JsonStateManager)
+
+
+def test_create_state_manager_sqlite(tmp_path):
+    sm = _create_state_manager("sqlite", "/tmp/s.json", str(tmp_path / "s.db"), "")
+    from src.state_manager import SqliteStateManager
+    assert isinstance(sm, SqliteStateManager)
+
+
+def test_create_state_manager_postgres_missing_url_exits():
+    with pytest.raises(SystemExit):
+        _create_state_manager("postgres", "/tmp/s.json", "/tmp/s.db", "")
+
+
+def test_create_state_manager_postgres_with_url():
+    mock_psycopg2 = MagicMock()
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.__enter__ = MagicMock(return_value=mock_cursor)
+    mock_cursor.__exit__ = MagicMock(return_value=False)
+    mock_conn.cursor.return_value = mock_cursor
+    mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+    mock_conn.__exit__ = MagicMock(return_value=False)
+    mock_psycopg2.connect.return_value = mock_conn
+    with patch.dict("sys.modules", {"psycopg2": mock_psycopg2, "psycopg2.extras": MagicMock()}):
+        from src.state_manager.postgres_backend import PostgresStateManager
+        sm = _create_state_manager("postgres", "/tmp/s.json", "/tmp/s.db", "postgresql://u:p@h/db")
+    assert isinstance(sm, PostgresStateManager)
+
+
 def test_main_uses_config_path_from_env():
-    config = make_config(ai_provider="anthropic")
+    config = make_config(ai_provider="copilot")
     with (
         patch("sys.argv", ["gmail-sorter"]),
         patch.dict(
             "os.environ",
-            {"ANTHROPIC_API_KEY": "key", "CONFIG_PATH": "/custom/config.yaml"},
+            {"GITHUB_TOKEN": "ghp_key", "CONFIG_PATH": "/custom/config.yaml"},
             clear=False,
         ),
         patch(PATCH_TARGETS["load_dotenv"]),
@@ -516,7 +566,7 @@ def test_main_uses_config_path_from_env():
         patch(PATCH_TARGETS["auth_cls"], return_value=MagicMock()),
         patch(PATCH_TARGETS["build"], return_value=MagicMock()),
         patch(PATCH_TARGETS["gmail_client_cls"], return_value=MagicMock()),
-        patch(PATCH_TARGETS["state_manager_cls"], return_value=MagicMock()),
+        patch(PATCH_TARGETS["create_state_manager"], return_value=MagicMock()),
         patch(PATCH_TARGETS["label_manager_cls"], return_value=MagicMock()),
         patch(PATCH_TARGETS["create_classifier"], return_value=MagicMock()),
         patch(PATCH_TARGETS["pubsub_client_cls"], return_value=MagicMock(
