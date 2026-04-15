@@ -29,8 +29,16 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - PRD-to-plan comparison revalidated after Task 15 execution; task ordering and remaining scope are still aligned to PRD requirements.
 - Task 16 — Load & Performance Tests has been executed (`tests/load/test_backfill_throughput.py`, `tests/load/test_latency.py`, and `tests/load/test_memory.py`).
 - PRD-to-plan comparison revalidated after Task 16 execution; task ordering and remaining scope are still aligned to PRD requirements.
-- Local environment currently lacks a Python runtime (`python: command not found`, `python3: command not found`), so pytest execution for newly added load tests could not be verified in-session.
-- **Next task to execute:** Task 17 — Final Integration & Packaging.
+- Host environment currently lacks a Python runtime (`python: command not found`, `python3: command not found`); verification commands were executed in a Python 3.12 container.
+- Task 17 — Final Integration & Packaging has been executed.
+- Task 17.1 complete: editable install and `gmail-sorter --help` verified in container.
+- Task 17.2 complete: `pytest --cov=gmail_sorter --cov-report=term-missing tests/` passed in container (99 passed).
+- Task 17.2 note: core modules meet coverage targets (`processor/` 100%, `llm/` 94%, `classifier/` 92%); supporting modules `db/` 100% but `config/` 63% and `cli.py` 92%, so the combined supporting target is partially unmet for `config/`.
+- Task 17.3 complete: configuration validation passes with `gmail-sorter --config config.yaml validate-config`.
+- Task 17.4 complete: Docker image builds successfully (`docker build -t gmail-sorter:latest .`).
+- Task 17.5 complete: `prompts/classify_email.j2` rendering verified with sample data in container.
+- PRD-to-plan comparison revalidated after Task 17 execution; no additional tasks are required.
+- **Next task to execute:** None. Plan complete.
 
 ---
 

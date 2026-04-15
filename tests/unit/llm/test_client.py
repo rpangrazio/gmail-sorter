@@ -146,3 +146,77 @@ async def test_classify_logs_lengths_when_prompts_redacted(
     assert "LLM request lengths:" in logs
     assert "sensitive system" not in logs
     assert "sensitive user" not in logs
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_classify_logs_full_prompts_when_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """When prompt logging is enabled, logs should include prompt content."""
+
+    monkeypatch.setenv("GITHUB_COPILOT_API_KEY", "test-key")
+
+    respx.post(COPILOT_CHAT_COMPLETIONS_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "category": "alerts",
+                                    "confidence": 0.5,
+                                    "reasoning": "Reason.",
+                                }
+                            )
+                        }
+                    }
+                ]
+            },
+        )
+    )
+
+    caplog.set_level("DEBUG")
+    client = LlmClient(_llm_config(), log_prompts=True)
+    try:
+        await client.classify("system details", "user details")
+    finally:
+        await client.close()
+
+    logs = "\n".join(record.getMessage() for record in caplog.records)
+    assert "LLM request prompts:" in logs
+    assert "system details" in logs
+    assert "LLM raw response:" in logs
+
+
+def test_extract_response_content_raises_for_non_json_response() -> None:
+    """Non-JSON API responses should surface as LlmError."""
+
+    response = httpx.Response(200, content="not-json")
+
+    with pytest.raises(LlmError, match="non-JSON"):
+        LlmClient._extract_response_content(response)
+
+
+def test_extract_response_content_raises_for_missing_content() -> None:
+    """Missing choices/message content should raise a descriptive error."""
+
+    response = httpx.Response(200, json={"choices": []})
+
+    with pytest.raises(LlmError, match="did not contain message content"):
+        LlmClient._extract_response_content(response)
+
+
+def test_extract_response_content_raises_for_non_string_content() -> None:
+    """Structured content values must be strings for parser compatibility."""
+
+    response = httpx.Response(
+        200,
+        json={"choices": [{"message": {"content": {"category": "alerts"}}}]},
+    )
+
+    with pytest.raises(LlmError, match="must be a string"):
+        LlmClient._extract_response_content(response)

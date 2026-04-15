@@ -10,6 +10,9 @@ WORKDIR /app
 COPY --from=builder /install /usr/local
 COPY . .
 
+# Install project package and CLI entry point
+RUN pip install --no-cache-dir .
+
 # Create non-root user
 RUN useradd --create-home appuser
 USER appuser

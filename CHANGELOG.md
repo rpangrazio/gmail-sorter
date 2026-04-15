@@ -53,6 +53,15 @@ All notable changes to this project are documented in this file.
 - End-to-end tests for Task 15 in `tests/e2e/test_full_pipeline.py` and `tests/e2e/test_backfill.py` covering CLI-driven run/backfill execution, dry-run behavior, fallback routing, DLQ recording on timeout failures, paginated backfill processing, and resume-from-token behavior.
 - Dead-letter queue persistence and error metric updates in `gmail_sorter/classifier/engine.py` for unrecoverable classification failures.
 - Load and performance tests for Task 16 in `tests/load/test_backfill_throughput.py`, `tests/load/test_latency.py`, and `tests/load/test_memory.py` covering backfill throughput target validation (NFR-002), end-to-end classification latency target validation (NFR-001), and idle listener memory footprint target validation (NFR-007).
+- Completed Task 17 final integration checks in containerized validation runs, including editable install, CLI help verification, full pytest+coverage execution, config validation command, prompt rendering check, and Docker image build verification.
+- Added setuptools package discovery configuration in `pyproject.toml` to package only `gmail_sorter*` and avoid accidental inclusion of non-package top-level directories.
+- Added HTTP/2 runtime dependency `h2>=4.1` to `requirements.txt` for `httpx.AsyncClient(http2=True)` compatibility.
+- Added project installation step in `Dockerfile` (`pip install --no-cache-dir .`) so the `gmail-sorter` executable is present in runtime images.
+- Added package markers under `tests/` (`__init__.py` files across test directories) to prevent duplicate test-module import collisions during pytest collection.
+- Added unit coverage for config loader failures and success paths in `tests/unit/config/test_loader.py`.
+- Expanded CLI unit coverage in `tests/unit/test_cli.py` for runtime overrides, `auth`, `stats`, and dependency wiring in `_build_engine`.
+- Expanded LLM client unit coverage in `tests/unit/llm/test_client.py` for prompt logging enabled behavior and response extraction error branches.
+- Added completion sentinel file `.DONE` to indicate plan completion.
 
 ### Changed
 
@@ -78,3 +87,5 @@ All notable changes to this project are documented in this file.
 - Updated `README.md` to include end-to-end test coverage and Task 16 as the next implementation milestone.
 - Updated `PLAN.md` after PRD and repository comparison to mark Task 16 complete and set Task 17 as the next task.
 - Updated `README.md` to include load/performance test coverage and Task 17 as the next implementation milestone.
+- Updated `PLAN.md` after PRD comparison and repository verification to mark Task 17 complete, document containerized verification outcomes, and mark the plan complete.
+- Updated `README.md` to document final integration/packaging completion and project completion state.

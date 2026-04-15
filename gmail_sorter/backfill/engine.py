@@ -109,9 +109,8 @@ class BackfillEngine:
             if getattr(result, "skipped", False):
                 skipped += 1
 
-        async with asyncio.TaskGroup() as task_group:
-            for message_id in message_ids:
-                task_group.create_task(classify_one(message_id))
+        tasks = [asyncio.create_task(classify_one(message_id)) for message_id in message_ids]
+        await asyncio.gather(*tasks)
 
         return processed, skipped
 

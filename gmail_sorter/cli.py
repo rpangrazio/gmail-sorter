@@ -91,9 +91,22 @@ def backfill(options: RuntimeOptions) -> None:
 
 
 @main.command("validate-config")
+@click.option(
+    "--config",
+    "config_path_override",
+    default=None,
+    type=click.Path(path_type=Path, dir_okay=False),
+    help="Override configuration file path for this command.",
+)
 @click.pass_obj
-def validate_config(options: RuntimeOptions) -> None:
+def validate_config(
+    options: RuntimeOptions,
+    config_path_override: Path | None,
+) -> None:
     """Validate configuration file and exit."""
+
+    if config_path_override is not None:
+        options.config_path = config_path_override
 
     _ = _load_runtime_config(options)
     click.echo("Configuration is valid.")

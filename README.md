@@ -36,10 +36,17 @@ This repository currently contains:
 - Implemented end-to-end test coverage for CLI `run` and `backfill` workflows (`tests/e2e/test_full_pipeline.py`, `tests/e2e/test_backfill.py`)
 - Implemented load and performance test coverage for throughput, end-to-end latency, and idle listener memory footprint (`tests/load/test_backfill_throughput.py`, `tests/load/test_latency.py`, `tests/load/test_memory.py`)
 - Added DLQ persistence in classification flow for unrecoverable classification failures to satisfy PRD error-handling expectations (`gmail_sorter/classifier/engine.py`)
+- Completed final integration and packaging checks with containerized verification for installability, full test suite execution, configuration validation, Docker build, and prompt rendering
+- Added packaging and test hardening updates:
+  - Explicit setuptools package discovery for `gmail_sorter` in `pyproject.toml`
+  - HTTP/2 dependency support with `h2>=4.1` in `requirements.txt`
+  - Docker runtime package installation so the `gmail-sorter` entry point is available in built images
+  - Test package `__init__.py` markers to avoid duplicate test module import collisions
+  - Expanded test coverage for config loader, CLI wiring, and LLM client error/logging branches
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-Implementation tasks continue to be tracked in `PLAN.md`, with Task 17 (Final Integration & Packaging) next.
+Implementation tasks tracked in `PLAN.md` are complete. Repository completion is marked by `.DONE`.
 
 ## Project Structure
 
@@ -100,4 +107,4 @@ python -m pytest tests/load/
 
 ## Roadmap
 
-Implementation proceeds by dependency order in `PLAN.md`, with Task 17 (Final Integration & Packaging) next.
+All planned tasks are complete. See `PLAN.md` execution status and `.DONE` for completion state.
