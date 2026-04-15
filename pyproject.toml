@@ -1,0 +1,21 @@
+[project]
+name = "gmail-sorter"
+version = "1.0.0"
+description = "Automated Gmail sorting and labeling pipeline"
+requires-python = ">=3.11"
+
+[project.scripts]
+gmail-sorter = "gmail_sorter.cli:main"
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+  "pytest-asyncio>=0.23",
+  "pytest-cov>=5",
+  "respx>=0.21",
+  "httpx",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"

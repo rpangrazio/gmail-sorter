@@ -1,0 +1,9 @@
+.git
+__pycache__
+*.pyc
+*.pyo
+tests/
+*.db
+token.json
+credentials.json
+.env

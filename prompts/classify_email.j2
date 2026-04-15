@@ -1,0 +1,24 @@
+Classify the following email into one of the categories listed below.
+
+---
+
+**Email Metadata:**
+- From: {{ sender }}
+- Subject: {{ subject }}
+- Date: {{ date }}
+- Has List-Unsubscribe Header: {{ headers.list_unsubscribe | default('No') }}
+- Reply-To: {{ headers.reply_to | default('N/A') }}
+
+**Email Body:**
+{{ body }}
+
+---
+
+**Available Categories:**
+{% for cat in categories %}
+- {{ cat.name }}: {{ cat.description }}
+{% endfor %}
+
+---
+
+Respond with a JSON object containing "category", "confidence", and "reasoning".

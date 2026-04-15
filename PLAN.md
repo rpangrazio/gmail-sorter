@@ -4,6 +4,15 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 
 ---
 
+## Execution Status
+
+- Repository comparison completed on April 15, 2026.
+- Current repository contains planning documents only (`PRD.md`, `PLAN.md`) and no implementation scaffold.
+- Task 1 — Project Scaffold has been executed.
+- **Next task to execute:** Task 2 — Configuration System.
+
+---
+
 ## Conventions
 
 - **Language:** Python 3.11+
@@ -157,7 +166,7 @@ Add a Pydantic `model_validator` on `AppConfig` that:
 ### 2.2 `gmail_sorter/config/loader.py`
 
 Implement `load_config(path: str | Path) -> AppConfig`:
-- Reads the YAML file using the stdlib `tomllib`-style approach (use `pyyaml`; add `PyYAML>=6.0` to `requirements.txt`).
+- Reads the YAML file using `yaml.safe_load` from `PyYAML` (add `PyYAML>=6.0` to `requirements.txt`).
 - Passes the parsed dict to `AppConfig.model_validate(...)`.
 - On `ValidationError`, prints each error with field path and message to stderr, then raises `SystemExit(1)`.
 
@@ -557,6 +566,7 @@ class ClassificationEngine:
 2. Run `IdempotencyChecker.is_processed`; return early with `ClassificationResult(skipped=True)` if already processed.
 3. Call `process_message` to produce a `ProcessedEmail`.
 4. Check `is_domain_allowed` against config allowlist/blocklist (SEC-004); skip if blocked.
+   - If allowlist/blocklist are not present in config, default both to empty lists.
 5. Build prompts via `PromptBuilder.build`.
 6. Call `LlmClient.classify`.
 7. Parse response via `parse_response`.
@@ -615,6 +625,7 @@ Requirements:
 - Support both `pull` and `push` modes (FR-025).
 - **Pull mode:** Use `google.cloud.pubsub_v1.SubscriberClient` to pull messages in a background thread; parse the Pub/Sub message data to extract the Gmail `message_id` from the notification JSON (`{"emailAddress": "...", "historyId": "..."}`). Use the Gmail history API (`users.history.list`) to get the actual new message IDs from the `historyId`.
 - **Push mode:** Start an `httpx`-based HTTP server on the configured port accepting `POST /pubsub` with the Pub/Sub push payload.
+- **Push mode:** Start a minimal HTTP server (for example `http.server`-based) on the configured port accepting `POST /pubsub` with the Pub/Sub push payload.
 - Acknowledge the Pub/Sub message (call `message.ack()`) ONLY after `engine.classify_message` returns successfully (FR-024).
 - On failure, do NOT acknowledge (so the message is redelivered).
 - Log every message outcome with Pub/Sub message ID and Gmail message ID (FR-026).

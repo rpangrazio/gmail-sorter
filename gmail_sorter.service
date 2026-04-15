@@ -1,0 +1,24 @@
+[Unit]
+Description=Gmail Sorting System
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gmail-sorter
+Group=gmail-sorter
+WorkingDirectory=/opt/gmail-sorter
+ExecStart=/opt/gmail-sorter/venv/bin/gmail-sorter run
+Restart=always
+RestartSec=10
+Environment=GITHUB_COPILOT_API_KEY=
+EnvironmentFile=/opt/gmail-sorter/.env
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/gmail-sorter/data
+
+[Install]
+WantedBy=multi-user.target
