@@ -10,8 +10,10 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - `main` branch is up to date with `origin/main`.
 - Task 1 — Project Scaffold has been executed.
 - Task 2 — Configuration System has been executed (`gmail_sorter/config/models.py`, `gmail_sorter/config/loader.py`, and `tests/unit/config/test_models.py`).
-- Local environment currently lacks a Python runtime, so Task 2 test execution could not be verified in-session.
-- **Next task to execute:** Task 3 — Database Layer.
+- Task 3 — Database Layer has been executed (`gmail_sorter/db/schema.py`, `gmail_sorter/db/repository.py`, and `tests/unit/db/test_repository.py`).
+- Task 4 — Gmail OAuth Authentication has been executed (`gmail_sorter/gmail/auth.py` and `tests/unit/gmail/test_auth.py`).
+- Local environment currently lacks a Python runtime, so pytest execution for newly added tests could not be verified in-session.
+- **Next task to execute:** Task 6 — Utilities (required by Task 5 retry integration).
 
 ---
 
@@ -918,12 +920,12 @@ assert "test@example.com" in out
 Task 1  (scaffold)
   └─ Task 2  (config)
        └─ Task 3  (database)
-            ├─ Task 4  (auth)
-            │    └─ Task 5  (Gmail client)
-            ├─ Task 6  (utils)
-            │    ├─ Task 7  (processor)
-            │    └─ Task 8  (LLM client)
-            │         └─ Task 9  (classifier engine)  ← needs Tasks 3,5,6,7,8
+             ├─ Task 4  (auth)
+             ├─ Task 6  (utils)
+             │    ├─ Task 5  (Gmail client)            ← needs Task 4 + Task 6 retry helper
+             │    ├─ Task 7  (processor)
+             │    └─ Task 8  (LLM client)
+             │         └─ Task 9  (classifier engine)  ← needs Tasks 3,5,6,7,8
             │              ├─ Task 10 (Pub/Sub)
             │              ├─ Task 11 (backfill)
             │              └─ Task 12 (observability)
