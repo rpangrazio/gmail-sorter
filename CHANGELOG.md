@@ -50,6 +50,8 @@ All notable changes to this project are documented in this file.
 - Click-based CLI implementation in `gmail_sorter/cli.py` with PRD-aligned global flags and subcommands (`run`, `backfill`, `validate-config`, `auth`, `stats`), runtime override handling, graceful listener shutdown, and optional concurrent backfill execution.
 - Unit tests for Task 13 in `tests/unit/test_cli.py` covering valid/invalid `validate-config` execution and `--version` output behavior.
 - Integration tests for Task 14 in `tests/integration/test_database.py`, `tests/integration/test_gmail_client.py`, `tests/integration/test_llm_client.py`, and `tests/integration/test_pipeline.py` covering repository persistence round-trips, label lifecycle behavior, LLM retry/error behavior, and end-to-end classification composition.
+- End-to-end tests for Task 15 in `tests/e2e/test_full_pipeline.py` and `tests/e2e/test_backfill.py` covering CLI-driven run/backfill execution, dry-run behavior, fallback routing, DLQ recording on timeout failures, paginated backfill processing, and resume-from-token behavior.
+- Dead-letter queue persistence and error metric updates in `gmail_sorter/classifier/engine.py` for unrecoverable classification failures.
 
 ### Changed
 
@@ -71,3 +73,5 @@ All notable changes to this project are documented in this file.
 - Updated `README.md` to include CLI module/test coverage and Task 14 as the next implementation milestone.
 - Updated `PLAN.md` after PRD and repository comparison to mark Task 14 complete and set Task 15 as the next task.
 - Updated `README.md` to include integration test coverage and Task 15 as the next implementation milestone.
+- Updated `PLAN.md` after PRD and repository comparison to mark Task 15 complete and set Task 16 as the next task.
+- Updated `README.md` to include end-to-end test coverage and Task 16 as the next implementation milestone.

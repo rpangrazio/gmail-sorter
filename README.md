@@ -33,10 +33,12 @@ This repository currently contains:
 - Implemented Click CLI with global flags and commands (`run`, `backfill`, `validate-config`, `auth`, `stats`) in `gmail_sorter/cli.py`
 - Unit tests for CLI command behavior (`tests/unit/test_cli.py`)
 - Implemented integration test coverage for database, Gmail client behavior, LLM client behavior, and pipeline composition (`tests/integration/`)
+- Implemented end-to-end test coverage for CLI `run` and `backfill` workflows (`tests/e2e/test_full_pipeline.py`, `tests/e2e/test_backfill.py`)
+- Added DLQ persistence in classification flow for unrecoverable classification failures to satisfy PRD error-handling expectations (`gmail_sorter/classifier/engine.py`)
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-Implementation tasks continue to be tracked in `PLAN.md`, with Task 15 (End-to-End Tests) next.
+Implementation tasks continue to be tracked in `PLAN.md`, with Task 16 (Load & Performance Tests) next.
 
 ## Project Structure
 
@@ -83,6 +85,12 @@ python -m pytest tests/ --collect-only
 python -m pytest tests/integration/
 ```
 
+6. Run end-to-end tests:
+
+```bash
+python -m pytest tests/e2e/
+```
+
 ## Roadmap
 
-Implementation proceeds by dependency order in `PLAN.md`, with Task 15 (End-to-End Tests) next.
+Implementation proceeds by dependency order in `PLAN.md`, with Task 16 (Load & Performance Tests) next.

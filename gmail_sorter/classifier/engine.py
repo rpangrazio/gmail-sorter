@@ -10,7 +10,7 @@ from typing import Any
 
 from gmail_sorter.classifier.idempotency import IdempotencyChecker
 from gmail_sorter.config.models import AppConfig
-from gmail_sorter.db.repository import ClassificationRecord, Database
+from gmail_sorter.db.repository import ClassificationRecord, Database, DlqEntry
 from gmail_sorter.llm.response_parser import LlmResponse, parse_response
 from gmail_sorter.processor.email_parser import ProcessedEmail, process_message
 from gmail_sorter.processor.prompt_builder import PromptBuilder
@@ -97,73 +97,87 @@ class ClassificationEngine:
                 started=started,
             )
 
-        system_prompt, user_prompt = self._prompt_builder.build(email)
-        llm_output = await self._llm_client.classify(system_prompt, user_prompt)
+        try:
+            system_prompt, user_prompt = self._prompt_builder.build(email)
+            llm_output = await self._llm_client.classify(system_prompt, user_prompt)
 
-        raw_content = self._extract_raw_content(llm_output)
-        parsed = parse_response(
-            raw_content=raw_content,
-            valid_categories=[category.name for category in self._config.categories],
-            fallback=self._config.classification.fallback_category,
-            threshold=self._config.classification.confidence_threshold,
-        )
-
-        label_applied = self._label_map.get(
-            parsed.category,
-            self._label_map.get(self._config.classification.fallback_category, ""),
-        )
-
-        if self._config.processing.dry_run:
-            LOGGER.info(
-                "Dry-run classification: message_id=%s category=%s label=%s confidence=%.3f",
-                email.message_id,
-                parsed.category,
-                label_applied,
-                parsed.confidence,
+            raw_content = self._extract_raw_content(llm_output)
+            parsed = parse_response(
+                raw_content=raw_content,
+                valid_categories=[category.name for category in self._config.categories],
+                fallback=self._config.classification.fallback_category,
+                threshold=self._config.classification.confidence_threshold,
             )
+
+            label_applied = self._label_map.get(
+                parsed.category,
+                self._label_map.get(self._config.classification.fallback_category, ""),
+            )
+
+            if self._config.processing.dry_run:
+                LOGGER.info(
+                    "Dry-run classification: message_id=%s category=%s label=%s confidence=%.3f",
+                    email.message_id,
+                    parsed.category,
+                    label_applied,
+                    parsed.confidence,
+                )
+                self._increment_metric("emails_processed_total")
+                self._increment_metric("emails_classified_total", parsed.category)
+                return self._result(
+                    message_id=email.message_id,
+                    category=parsed.category,
+                    confidence=parsed.confidence,
+                    label_applied=label_applied,
+                    skipped=False,
+                    started=started,
+                )
+
+            self._gmail_client.apply_label(
+                email.message_id,
+                label_applied,
+                archive=self._config.processing.archive_after_label,
+            )
+
+            duration_ms = int((time.perf_counter() - started) * 1000)
+            self._db.upsert_classification(
+                ClassificationRecord(
+                    message_id=email.message_id,
+                    gmail_thread_id=email.thread_id,
+                    timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    category=parsed.category,
+                    confidence=parsed.confidence,
+                    model_used=self._config.llm.model,
+                    prompt_template_hash=self._prompt_builder.template_hash(),
+                    label_applied=label_applied,
+                    processing_duration_ms=duration_ms,
+                )
+            )
+
             self._increment_metric("emails_processed_total")
             self._increment_metric("emails_classified_total", parsed.category)
-            return self._result(
+
+            return ClassificationResult(
                 message_id=email.message_id,
                 category=parsed.category,
                 confidence=parsed.confidence,
                 label_applied=label_applied,
                 skipped=False,
-                started=started,
+                duration_ms=duration_ms,
             )
-
-        self._gmail_client.apply_label(
-            email.message_id,
-            label_applied,
-            archive=self._config.processing.archive_after_label,
-        )
-
-        duration_ms = int((time.perf_counter() - started) * 1000)
-        self._db.upsert_classification(
-            ClassificationRecord(
-                message_id=email.message_id,
-                gmail_thread_id=email.thread_id,
-                timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                category=parsed.category,
-                confidence=parsed.confidence,
-                model_used=self._config.llm.model,
-                prompt_template_hash=self._prompt_builder.template_hash(),
-                label_applied=label_applied,
-                processing_duration_ms=duration_ms,
+        except Exception as exc:
+            error_type = self._error_type(exc)
+            self._db.add_to_dlq(
+                DlqEntry(
+                    id=None,
+                    message_id=email.message_id,
+                    error_type=error_type,
+                    error_message=str(exc) or exc.__class__.__name__,
+                    attempts=1,
+                )
             )
-        )
-
-        self._increment_metric("emails_processed_total")
-        self._increment_metric("emails_classified_total", parsed.category)
-
-        return ClassificationResult(
-            message_id=email.message_id,
-            category=parsed.category,
-            confidence=parsed.confidence,
-            label_applied=label_applied,
-            skipped=False,
-            duration_ms=duration_ms,
-        )
+            self._increment_error_metric(error_type)
+            raise
 
     @staticmethod
     def _extract_raw_content(llm_output: Any) -> str:
@@ -236,3 +250,25 @@ class ClassificationEngine:
             increment = getattr(labelled_metric, "inc", None)
             if callable(increment):
                 increment()
+
+    def _increment_error_metric(self, error_type: str) -> None:
+        """Increment the classified error counter when metrics are configured."""
+
+        metric = getattr(self._metrics, "classification_errors_total", None)
+        labels = getattr(metric, "labels", None)
+        if callable(labels):
+            labelled_metric = labels(error_type=error_type)
+            increment = getattr(labelled_metric, "inc", None)
+            if callable(increment):
+                increment()
+
+    @staticmethod
+    def _error_type(exc: Exception) -> str:
+        """Map an exception to the PRD-aligned error type taxonomy."""
+
+        name = exc.__class__.__name__.lower()
+        if name in {"llmerror", "llmparseerror", "timeoutexception", "timeouterror"}:
+            return "llm_error"
+        if name in {"systemexit", "validationerror"}:
+            return "config_error"
+        return "api_error"
