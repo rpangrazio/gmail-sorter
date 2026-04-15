@@ -26,10 +26,12 @@ This repository currently contains:
 - Unit tests for classification engine behavior (`tests/unit/classifier/`)
 - Implemented Pub/Sub watcher and listener (`gmail_sorter/pubsub/watcher.py`, `gmail_sorter/pubsub/listener.py`)
 - Unit tests for Pub/Sub behavior (`tests/unit/pubsub/`)
+- Implemented backfill engine with resume/concurrency handling (`gmail_sorter/backfill/engine.py`)
+- Unit tests for backfill behavior (`tests/unit/backfill/test_engine.py`)
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-Implementation tasks continue to be tracked in `PLAN.md`, with Task 11 (Backfill Engine) next.
+Implementation tasks continue to be tracked in `PLAN.md`, with Task 12 (Observability) next.
 
 ## Project Structure
 
@@ -59,6 +61,7 @@ python -m pytest tests/unit/processor/
 python -m pytest tests/unit/llm/
 python -m pytest tests/unit/classifier/
 python -m pytest tests/unit/pubsub/
+python -m pytest tests/unit/backfill/
 ```
 
 4. Run test discovery:
@@ -69,4 +72,4 @@ python -m pytest tests/ --collect-only
 
 ## Roadmap
 
-Implementation proceeds by dependency order in `PLAN.md`, with Task 11 (Backfill Engine) next.
+Implementation proceeds by dependency order in `PLAN.md`, with Task 12 (Observability) next.

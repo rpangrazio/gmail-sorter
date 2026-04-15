@@ -41,6 +41,8 @@ All notable changes to this project are documented in this file.
 - Pub/Sub listener implementation in `gmail_sorter/pubsub/listener.py` with topic/subscription provisioning, pull and push mode support, Gmail history expansion, post-classification ack semantics, and per-message outcome logging.
 - Gmail client history API support in `gmail_sorter/gmail/client.py` via `list_history` for resolving message IDs from Pub/Sub notifications.
 - Unit tests for Task 10 in `tests/unit/pubsub/test_listener.py` and `tests/unit/pubsub/test_watcher.py` covering ack behavior, failure redelivery behavior, history pagination extraction, and renewal timer scheduling.
+- Backfill engine implementation in `gmail_sorter/backfill/engine.py` with resumable state detection, paginated mailbox scanning, bounded async concurrency, progress logging, and interrupted/completed state persistence.
+- Unit tests for Task 11 in `tests/unit/backfill/test_engine.py` covering full pagination processing, interrupted-state resume token handling, concurrency limits, and cancellation state updates.
 
 ### Changed
 
@@ -54,3 +56,5 @@ All notable changes to this project are documented in this file.
 - Updated `README.md` to include classifier module/test coverage and Task 10 as the next implementation milestone.
 - Updated `PLAN.md` after PRD and repository comparison to mark Task 10 complete and set Task 11 as the next task.
 - Updated `README.md` to include Pub/Sub module/test coverage and Task 11 as the next implementation milestone.
+- Updated `PLAN.md` after PRD and repository comparison to mark Task 11 complete and set Task 12 as the next task.
+- Updated `README.md` to include backfill module/test coverage and Task 12 as the next implementation milestone.

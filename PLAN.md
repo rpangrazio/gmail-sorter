@@ -18,10 +18,11 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - Task 8 — LLM Client has been executed (`gmail_sorter/llm/client.py`, `gmail_sorter/llm/response_parser.py`, and `tests/unit/llm/`).
 - Task 9 — Classification Engine has been executed (`gmail_sorter/classifier/idempotency.py`, `gmail_sorter/classifier/engine.py`, and `tests/unit/classifier/`).
 - Task 10 — Pub/Sub Integration has been executed (`gmail_sorter/pubsub/watcher.py`, `gmail_sorter/pubsub/listener.py`, and `tests/unit/pubsub/`).
+- Task 11 — Backfill Engine has been executed (`gmail_sorter/backfill/engine.py` and `tests/unit/backfill/test_engine.py`).
 - PRD-to-plan comparison completed; current task sequence remains aligned with PRD scope and ordering, with no additional plan tasks required at this checkpoint.
-- Repository comparison against this plan confirms Tasks 1–10 are implemented; Tasks 11–17 remain pending.
+- Repository comparison against this plan confirms Tasks 1–11 are implemented; Tasks 12–17 remain pending.
 - Local environment currently lacks a Python runtime (`python: command not found`, `python3: command not found`), so pytest execution for newly added tests could not be verified in-session.
-- **Next task to execute:** Task 11 — Backfill Engine.
+- **Next task to execute:** Task 12 — Observability.
 
 ---
 
