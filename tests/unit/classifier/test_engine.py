@@ -1,0 +1,329 @@
+"""Unit tests for classification engine orchestration."""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+
+import pytest
+
+from gmail_sorter.classifier.engine import ClassificationEngine
+from gmail_sorter.classifier.idempotency import IdempotencyChecker
+from gmail_sorter.config.models import (
+    AppConfig,
+    CategoryConfig,
+    ClassificationConfig,
+    DatabaseConfig,
+    GmailConfig,
+    LlmConfig,
+    LoggingConfig,
+    ProcessingConfig,
+    PubSubConfig,
+)
+from gmail_sorter.db.repository import ClassificationRecord
+from gmail_sorter.processor.prompt_builder import PromptBuilder
+
+
+def _config(dry_run: bool = False, threshold: float = 0.7) -> AppConfig:
+    return AppConfig(
+        gmail=GmailConfig(
+            credentials_path="./credentials.json",
+            token_path="./token.json",
+            scopes=["scope-1", "scope-2"],
+        ),
+        pubsub=PubSubConfig(
+            project_id="proj",
+            topic="topic",
+            subscription="sub",
+            mode="pull",
+        ),
+        llm=LlmConfig(
+            provider="github_copilot",
+            model="gpt-4o",
+            api_key_env="GITHUB_COPILOT_API_KEY",
+            timeout_seconds=30,
+            max_retries=1,
+            system_prompt="System prompt",
+            prompt_template=(
+                "From: {{ sender }} | Subject: {{ subject }} | "
+                "Category: {{ categories[0].name }}"
+            ),
+        ),
+        classification=ClassificationConfig(
+            confidence_threshold=threshold,
+            fallback_category="uncategorized",
+            multi_label=False,
+        ),
+        categories=[
+            CategoryConfig(
+                name="alerts",
+                label="AutoSort/Alerts",
+                description="Service alerts",
+            ),
+            CategoryConfig(
+                name="uncategorized",
+                label="AutoSort/Uncategorized",
+                description="Fallback",
+            ),
+        ],
+        processing=ProcessingConfig(
+            body_max_length=4096,
+            batch_size=50,
+            backfill_concurrency=5,
+            archive_after_label=False,
+            dry_run=dry_run,
+        ),
+        logging=LoggingConfig(level="INFO", log_prompts=False),
+        database=DatabaseConfig(path=":memory:"),
+    )
+
+
+class _FakeGmailClient:
+    def __init__(self, raw_message: dict) -> None:
+        self._raw_message = raw_message
+        self.applied: list[tuple[str, str, bool]] = []
+
+    def get_message(self, message_id: str) -> dict:
+        assert message_id == self._raw_message["id"]
+        return self._raw_message
+
+    def apply_label(self, message_id: str, label_id: str, archive: bool = False) -> None:
+        self.applied.append((message_id, label_id, archive))
+
+
+@dataclass
+class _FakeLlmResponse:
+    raw: str
+
+
+class _FakeLlmClient:
+    def __init__(self, raw_response: str) -> None:
+        self._raw_response = raw_response
+        self.calls = 0
+
+    async def classify(self, system_prompt: str, user_prompt: str) -> _FakeLlmResponse:
+        assert system_prompt
+        assert user_prompt
+        self.calls += 1
+        return _FakeLlmResponse(raw=self._raw_response)
+
+
+class _FakeDatabase:
+    def __init__(self, classified_message_ids: set[str] | None = None) -> None:
+        self.classified_message_ids = classified_message_ids or set()
+        self.records: list[ClassificationRecord] = []
+
+    def is_classified(self, message_id: str) -> bool:
+        return message_id in self.classified_message_ids
+
+    def upsert_classification(self, record: ClassificationRecord) -> None:
+        self.records.append(record)
+        self.classified_message_ids.add(record.message_id)
+
+
+class _Counter:
+    def __init__(self) -> None:
+        self.count = 0
+
+    def inc(self) -> None:
+        self.count += 1
+
+
+class _LabelCounter:
+    def __init__(self) -> None:
+        self.by_category: dict[str, int] = {}
+
+    def labels(self, category: str) -> "_LabelCounterProxy":
+        return _LabelCounterProxy(self.by_category, category)
+
+
+class _LabelCounterProxy:
+    def __init__(self, store: dict[str, int], category: str) -> None:
+        self._store = store
+        self._category = category
+
+    def inc(self) -> None:
+        self._store[self._category] = self._store.get(self._category, 0) + 1
+
+
+class _FakeMetrics:
+    def __init__(self) -> None:
+        self.emails_processed_total = _Counter()
+        self.emails_classified_total = _LabelCounter()
+
+
+def _raw_message(message_id: str = "msg-1", label_ids: list[str] | None = None) -> dict:
+    label_ids = label_ids or ["INBOX"]
+    body = "classification body"
+    return {
+        "id": message_id,
+        "threadId": "thread-1",
+        "labelIds": label_ids,
+        "payload": {
+            "headers": [
+                {"name": "From", "value": "Sender <sender@example.com>"},
+                {"name": "Subject", "value": "Subject"},
+                {"name": "Date", "value": "Wed, 15 Apr 2026 00:00:00 +0000"},
+            ],
+            "mimeType": "text/plain",
+            "body": {
+                "data": (
+                    "Y2xhc3NpZmljYXRpb24gYm9keQ==" if body == "classification body" else body
+                )
+            },
+        },
+    }
+
+
+@pytest.mark.asyncio
+async def test_classify_message_happy_path() -> None:
+    config = _config(dry_run=False)
+    gmail_client = _FakeGmailClient(_raw_message())
+    llm_client = _FakeLlmClient(
+        json.dumps(
+            {
+                "category": "alerts",
+                "confidence": 0.95,
+                "reasoning": "Service notification.",
+            }
+        )
+    )
+    database = _FakeDatabase()
+    metrics = _FakeMetrics()
+    checker = IdempotencyChecker(database, system_label_ids={"Label_alerts"})
+    builder = PromptBuilder(config.llm, config.categories)
+
+    engine = ClassificationEngine(
+        config=config,
+        gmail_client=gmail_client,
+        llm_client=llm_client,
+        db=database,
+        label_map={"alerts": "Label_alerts", "uncategorized": "Label_uncategorized"},
+        idempotency_checker=checker,
+        prompt_builder=builder,
+        metrics=metrics,
+    )
+
+    result = await engine.classify_message("msg-1")
+
+    assert result.message_id == "msg-1"
+    assert result.category == "alerts"
+    assert result.confidence == 0.95
+    assert result.label_applied == "Label_alerts"
+    assert result.skipped is False
+    assert len(database.records) == 1
+    assert gmail_client.applied == [("msg-1", "Label_alerts", False)]
+    assert metrics.emails_processed_total.count == 1
+    assert metrics.emails_classified_total.by_category["alerts"] == 1
+    assert llm_client.calls == 1
+
+
+@pytest.mark.asyncio
+async def test_classify_message_uses_fallback_for_low_confidence() -> None:
+    config = _config(dry_run=False, threshold=0.7)
+    gmail_client = _FakeGmailClient(_raw_message())
+    llm_client = _FakeLlmClient(
+        json.dumps(
+            {
+                "category": "alerts",
+                "confidence": 0.2,
+                "reasoning": "Uncertain.",
+            }
+        )
+    )
+    database = _FakeDatabase()
+    metrics = _FakeMetrics()
+    checker = IdempotencyChecker(database, system_label_ids={"Label_alerts"})
+    builder = PromptBuilder(config.llm, config.categories)
+
+    engine = ClassificationEngine(
+        config=config,
+        gmail_client=gmail_client,
+        llm_client=llm_client,
+        db=database,
+        label_map={"alerts": "Label_alerts", "uncategorized": "Label_uncategorized"},
+        idempotency_checker=checker,
+        prompt_builder=builder,
+        metrics=metrics,
+    )
+
+    result = await engine.classify_message("msg-1")
+
+    assert result.category == "uncategorized"
+    assert result.label_applied == "Label_uncategorized"
+    assert gmail_client.applied == [("msg-1", "Label_uncategorized", False)]
+
+
+@pytest.mark.asyncio
+async def test_classify_message_dry_run_skips_gmail_and_db_write() -> None:
+    config = _config(dry_run=True)
+    gmail_client = _FakeGmailClient(_raw_message())
+    llm_client = _FakeLlmClient(
+        json.dumps(
+            {
+                "category": "alerts",
+                "confidence": 0.9,
+                "reasoning": "Service notification.",
+            }
+        )
+    )
+    database = _FakeDatabase()
+    metrics = _FakeMetrics()
+    checker = IdempotencyChecker(database, system_label_ids={"Label_alerts"})
+    builder = PromptBuilder(config.llm, config.categories)
+
+    engine = ClassificationEngine(
+        config=config,
+        gmail_client=gmail_client,
+        llm_client=llm_client,
+        db=database,
+        label_map={"alerts": "Label_alerts", "uncategorized": "Label_uncategorized"},
+        idempotency_checker=checker,
+        prompt_builder=builder,
+        metrics=metrics,
+    )
+
+    result = await engine.classify_message("msg-1")
+
+    assert result.skipped is False
+    assert gmail_client.applied == []
+    assert database.records == []
+    assert llm_client.calls == 1
+
+
+@pytest.mark.asyncio
+async def test_classify_message_skips_when_already_classified() -> None:
+    config = _config(dry_run=False)
+    gmail_client = _FakeGmailClient(_raw_message())
+    llm_client = _FakeLlmClient(
+        json.dumps(
+            {
+                "category": "alerts",
+                "confidence": 0.95,
+                "reasoning": "Service notification.",
+            }
+        )
+    )
+    database = _FakeDatabase(classified_message_ids={"msg-1"})
+    metrics = _FakeMetrics()
+    checker = IdempotencyChecker(database, system_label_ids={"Label_alerts"})
+    builder = PromptBuilder(config.llm, config.categories)
+
+    engine = ClassificationEngine(
+        config=config,
+        gmail_client=gmail_client,
+        llm_client=llm_client,
+        db=database,
+        label_map={"alerts": "Label_alerts", "uncategorized": "Label_uncategorized"},
+        idempotency_checker=checker,
+        prompt_builder=builder,
+        metrics=metrics,
+    )
+
+    result = await engine.classify_message("msg-1")
+
+    assert result.skipped is True
+    assert result.category == ""
+    assert gmail_client.applied == []
+    assert database.records == []
+    assert llm_client.calls == 0

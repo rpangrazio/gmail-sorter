@@ -34,6 +34,9 @@ All notable changes to this project are documented in this file.
 - LLM client implementation in `gmail_sorter/llm/client.py` with Copilot chat completions integration, environment-based API key loading, configurable retry behavior, prompt/response logging controls, and structured error handling.
 - LLM response parser implementation in `gmail_sorter/llm/response_parser.py` with JSON extraction fallback, category fallback routing, confidence clamping, and threshold enforcement.
 - Unit tests for Task 8 in `tests/unit/llm/test_client.py` and `tests/unit/llm/test_response_parser.py` covering request payload shape, retry exhaustion behavior, API-key validation, prompt redaction, fallback behavior, malformed JSON handling, and confidence normalization.
+- Classification idempotency implementation in `gmail_sorter/classifier/idempotency.py` with database and label-based duplicate detection.
+- Classification engine orchestration in `gmail_sorter/classifier/engine.py` covering fetch, idempotency checks, sender policy gating, prompt generation, LLM response parsing, dry-run handling, label application, DB persistence, and metrics updates.
+- Unit tests for Task 9 in `tests/unit/classifier/test_idempotency.py` and `tests/unit/classifier/test_engine.py` covering idempotent skip conditions, successful classification path, fallback routing, dry-run behavior, and early skip behavior without LLM calls.
 
 ### Changed
 
@@ -43,3 +46,5 @@ All notable changes to this project are documented in this file.
 - Updated `README.md` to include processor module/test coverage and Task 8 as the next implementation milestone.
 - Updated `PLAN.md` after PRD and repository comparison to mark Task 8 complete and set Task 9 as the next task.
 - Updated `README.md` to include LLM module/test coverage and Task 9 as the next implementation milestone.
+- Updated `PLAN.md` after PRD and repository comparison to mark Task 9 complete and set Task 10 as the next task.
+- Updated `README.md` to include classifier module/test coverage and Task 10 as the next implementation milestone.
