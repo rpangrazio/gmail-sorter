@@ -7,9 +7,11 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 ## Execution Status
 
 - Repository comparison completed on April 15, 2026.
-- Current repository contains planning documents only (`PRD.md`, `PLAN.md`) and no implementation scaffold.
+- `main` branch is up to date with `origin/main`.
 - Task 1 — Project Scaffold has been executed.
-- **Next task to execute:** Task 2 — Configuration System.
+- Task 2 — Configuration System has been executed (`gmail_sorter/config/models.py`, `gmail_sorter/config/loader.py`, and `tests/unit/config/test_models.py`).
+- Local environment currently lacks a Python runtime, so Task 2 test execution could not be verified in-session.
+- **Next task to execute:** Task 3 — Database Layer.
 
 ---
 
@@ -622,9 +624,9 @@ class PubSubListener:
 ```
 
 Requirements:
+- Support FR-020 by creating or reusing the configured Pub/Sub topic and subscription at startup before listener consumption begins.
 - Support both `pull` and `push` modes (FR-025).
 - **Pull mode:** Use `google.cloud.pubsub_v1.SubscriberClient` to pull messages in a background thread; parse the Pub/Sub message data to extract the Gmail `message_id` from the notification JSON (`{"emailAddress": "...", "historyId": "..."}`). Use the Gmail history API (`users.history.list`) to get the actual new message IDs from the `historyId`.
-- **Push mode:** Start an `httpx`-based HTTP server on the configured port accepting `POST /pubsub` with the Pub/Sub push payload.
 - **Push mode:** Start a minimal HTTP server (for example `http.server`-based) on the configured port accepting `POST /pubsub` with the Pub/Sub push payload.
 - Acknowledge the Pub/Sub message (call `message.ack()`) ONLY after `engine.classify_message` returns successfully (FR-024).
 - On failure, do NOT acknowledge (so the message is redelivered).

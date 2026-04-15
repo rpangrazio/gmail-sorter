@@ -8,10 +8,12 @@ This repository currently contains:
 
 - Product and planning docs (`PRD.md`, `PLAN.md`)
 - Initial project scaffold and package layout
+- Implemented configuration system (`gmail_sorter/config/models.py`, `gmail_sorter/config/loader.py`)
+- Unit tests for configuration validation (`tests/unit/config/test_models.py`)
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-Core implementation tasks (configuration models, Gmail client, classifier engine, Pub/Sub integration, backfill, observability, and CLI behavior) are planned and tracked in `PLAN.md`.
+Implementation tasks continue to be tracked in `PLAN.md`, with Task 3 (Database Layer) next.
 
 ## Project Structure
 
@@ -30,7 +32,13 @@ pip install -r requirements.txt
 pip install -e ".[dev]"
 ```
 
-3. Run test discovery:
+3. Run configuration tests:
+
+```bash
+python -m pytest tests/unit/config/
+```
+
+4. Run test discovery:
 
 ```bash
 python -m pytest tests/ --collect-only
@@ -38,4 +46,4 @@ python -m pytest tests/ --collect-only
 
 ## Roadmap
 
-Implementation proceeds sequentially by task number in `PLAN.md`, with Task 2 (Configuration System) next.
+Implementation proceeds sequentially by task number in `PLAN.md`, with Task 3 (Database Layer) next.
