@@ -15,8 +15,10 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - Task 6 — Utilities has been executed (`gmail_sorter/utils/retry.py`, `gmail_sorter/utils/mime.py`, `gmail_sorter/utils/security.py`, and `tests/unit/utils/`).
 - Task 5 — Gmail API Client has been executed (`gmail_sorter/gmail/client.py`, `gmail_sorter/gmail/labels.py`, and `tests/unit/gmail/test_client.py`).
 - Task 7 — Email Processor & Prompt Builder has been executed (`gmail_sorter/processor/email_parser.py`, `gmail_sorter/processor/prompt_builder.py`, and `tests/unit/processor/`).
-- Local environment currently lacks a Python runtime (`python: command not found`), so pytest execution for newly added tests could not be verified in-session.
-- **Next task to execute:** Task 8 — LLM Client.
+- Task 8 — LLM Client has been executed (`gmail_sorter/llm/client.py`, `gmail_sorter/llm/response_parser.py`, and `tests/unit/llm/`).
+- Repository comparison against this plan confirms Tasks 1–8 are implemented; Tasks 9–17 remain pending.
+- Local environment currently lacks a Python runtime (`python: command not found`, `python3: command not found`), so pytest execution for newly added tests could not be verified in-session.
+- **Next task to execute:** Task 9 — Classification Engine.
 
 ---
 
@@ -521,7 +523,7 @@ Requirements:
 
 ### 8.3 Tests — `tests/unit/llm/`
 
-- `test_response_parser.py`: valid response; unknown category → fallback; low confidence → fallback; malformed JSON → fallback; confidence clamping.
+- `test_response_parser.py`: valid response; unknown category → fallback; low confidence → fallback; malformed JSON → `LlmParseError`; confidence clamping; JSON-substring extraction from wrapped responses.
 - `test_client.py`: mock `httpx.AsyncClient` with `respx`; verify correct request body; verify retry on 500; verify `LlmError` raised after max retries; verify prompt redaction when `log_prompts=False`.
 
 **Acceptance criteria:** `pytest tests/unit/llm/` passes.

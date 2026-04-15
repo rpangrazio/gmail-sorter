@@ -31,6 +31,9 @@ All notable changes to this project are documented in this file.
 - Processor email parser implementation in `gmail_sorter/processor/email_parser.py` with `ProcessedEmail` normalization, header extraction, safe body sanitization, and truncation.
 - Prompt builder implementation in `gmail_sorter/processor/prompt_builder.py` supporting inline/file Jinja2 templates and stable SHA-256 template hashing.
 - Unit tests for Task 7 in `tests/unit/processor/test_email_parser.py` and `tests/unit/processor/test_prompt_builder.py` covering multipart extraction, HTML fallback, truncation, header mapping, template rendering, and template hashing.
+- LLM client implementation in `gmail_sorter/llm/client.py` with Copilot chat completions integration, environment-based API key loading, configurable retry behavior, prompt/response logging controls, and structured error handling.
+- LLM response parser implementation in `gmail_sorter/llm/response_parser.py` with JSON extraction fallback, category fallback routing, confidence clamping, and threshold enforcement.
+- Unit tests for Task 8 in `tests/unit/llm/test_client.py` and `tests/unit/llm/test_response_parser.py` covering request payload shape, retry exhaustion behavior, API-key validation, prompt redaction, fallback behavior, malformed JSON handling, and confidence normalization.
 
 ### Changed
 
@@ -38,3 +41,5 @@ All notable changes to this project are documented in this file.
 - Updated `README.md` with current implementation status and expanded unit test commands.
 - Updated `PLAN.md` to mark Task 7 complete and set Task 8 as next by dependency order.
 - Updated `README.md` to include processor module/test coverage and Task 8 as the next implementation milestone.
+- Updated `PLAN.md` after PRD and repository comparison to mark Task 8 complete and set Task 9 as the next task.
+- Updated `README.md` to include LLM module/test coverage and Task 9 as the next implementation milestone.

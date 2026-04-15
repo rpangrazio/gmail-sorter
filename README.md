@@ -20,10 +20,12 @@ This repository currently contains:
 - Unit tests for Gmail client behavior (`tests/unit/gmail/test_client.py`)
 - Implemented email processor and prompt builder (`gmail_sorter/processor/email_parser.py`, `gmail_sorter/processor/prompt_builder.py`)
 - Unit tests for processor behavior (`tests/unit/processor/`)
+- Implemented LLM client and response parser (`gmail_sorter/llm/client.py`, `gmail_sorter/llm/response_parser.py`)
+- Unit tests for LLM behavior (`tests/unit/llm/`)
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-Implementation tasks continue to be tracked in `PLAN.md`, with Task 8 (LLM Client) next.
+Implementation tasks continue to be tracked in `PLAN.md`, with Task 9 (Classification Engine) next.
 
 ## Project Structure
 
@@ -50,6 +52,7 @@ python -m pytest tests/unit/db/
 python -m pytest tests/unit/gmail/
 python -m pytest tests/unit/utils/
 python -m pytest tests/unit/processor/
+python -m pytest tests/unit/llm/
 ```
 
 4. Run test discovery:
@@ -60,4 +63,4 @@ python -m pytest tests/ --collect-only
 
 ## Roadmap
 
-Implementation proceeds by dependency order in `PLAN.md`, with Task 8 (LLM Client) next.
+Implementation proceeds by dependency order in `PLAN.md`, with Task 9 (Classification Engine) next.
