@@ -20,10 +20,11 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - Task 10 — Pub/Sub Integration has been executed (`gmail_sorter/pubsub/watcher.py`, `gmail_sorter/pubsub/listener.py`, and `tests/unit/pubsub/`).
 - Task 11 — Backfill Engine has been executed (`gmail_sorter/backfill/engine.py` and `tests/unit/backfill/test_engine.py`).
 - Task 12 — Observability has been executed (`gmail_sorter/observability/logging.py`, `gmail_sorter/observability/metrics.py`, `gmail_sorter/observability/health.py`, and `tests/unit/observability/`).
+- Task 13 — CLI has been executed (`gmail_sorter/cli.py` and `tests/unit/test_cli.py`).
 - PRD-to-plan comparison completed; current task sequence remains aligned with PRD scope and ordering, with no additional plan tasks required at this checkpoint.
-- Repository comparison against this plan confirms Tasks 1–12 are implemented; Tasks 13–17 remain pending.
+- Repository comparison against this plan confirms Tasks 1–13 are implemented; Tasks 14–17 remain pending.
 - Local environment currently lacks a Python runtime (`python: command not found`, `python3: command not found`), so pytest execution for newly added tests could not be verified in-session.
-- **Next task to execute:** Task 13 — CLI.
+- **Next task to execute:** Task 14 — Integration Tests.
 
 ---
 

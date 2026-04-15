@@ -30,10 +30,12 @@ This repository currently contains:
 - Unit tests for backfill behavior (`tests/unit/backfill/test_engine.py`)
 - Implemented observability modules for structured logging, Prometheus metrics, and health checks (`gmail_sorter/observability/logging.py`, `gmail_sorter/observability/metrics.py`, `gmail_sorter/observability/health.py`)
 - Unit tests for observability behavior (`tests/unit/observability/`)
+- Implemented Click CLI with global flags and commands (`run`, `backfill`, `validate-config`, `auth`, `stats`) in `gmail_sorter/cli.py`
+- Unit tests for CLI command behavior (`tests/unit/test_cli.py`)
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-Implementation tasks continue to be tracked in `PLAN.md`, with Task 13 (CLI) next.
+Implementation tasks continue to be tracked in `PLAN.md`, with Task 14 (Integration Tests) next.
 
 ## Project Structure
 
@@ -65,6 +67,7 @@ python -m pytest tests/unit/classifier/
 python -m pytest tests/unit/pubsub/
 python -m pytest tests/unit/backfill/
 python -m pytest tests/unit/observability/
+python -m pytest tests/unit/test_cli.py
 ```
 
 4. Run test discovery:
@@ -75,4 +78,4 @@ python -m pytest tests/ --collect-only
 
 ## Roadmap
 
-Implementation proceeds by dependency order in `PLAN.md`, with Task 13 (CLI) next.
+Implementation proceeds by dependency order in `PLAN.md`, with Task 14 (Integration Tests) next.
