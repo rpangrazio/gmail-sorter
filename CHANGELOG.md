@@ -28,8 +28,13 @@ All notable changes to this project are documented in this file.
 - Gmail API client implementation in `gmail_sorter/gmail/client.py` covering message retrieval/listing, label lifecycle, label application, watch registration, retry wrapping, and dry-run behavior.
 - Label manager implementation in `gmail_sorter/gmail/labels.py` for startup label provisioning by category.
 - Unit tests for Task 5 in `tests/unit/gmail/test_client.py` covering label reuse, dry-run suppression of API calls, and archive label modification payloads.
+- Processor email parser implementation in `gmail_sorter/processor/email_parser.py` with `ProcessedEmail` normalization, header extraction, safe body sanitization, and truncation.
+- Prompt builder implementation in `gmail_sorter/processor/prompt_builder.py` supporting inline/file Jinja2 templates and stable SHA-256 template hashing.
+- Unit tests for Task 7 in `tests/unit/processor/test_email_parser.py` and `tests/unit/processor/test_prompt_builder.py` covering multipart extraction, HTML fallback, truncation, header mapping, template rendering, and template hashing.
 
 ### Changed
 
 - Updated `PLAN.md` to align execution status with completed Tasks 5 and 6, and set Task 7 as next by dependency order.
 - Updated `README.md` with current implementation status and expanded unit test commands.
+- Updated `PLAN.md` to mark Task 7 complete and set Task 8 as next by dependency order.
+- Updated `README.md` to include processor module/test coverage and Task 8 as the next implementation milestone.

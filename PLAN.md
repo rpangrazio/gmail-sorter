@@ -14,8 +14,9 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - Task 4 — Gmail OAuth Authentication has been executed (`gmail_sorter/gmail/auth.py` and `tests/unit/gmail/test_auth.py`).
 - Task 6 — Utilities has been executed (`gmail_sorter/utils/retry.py`, `gmail_sorter/utils/mime.py`, `gmail_sorter/utils/security.py`, and `tests/unit/utils/`).
 - Task 5 — Gmail API Client has been executed (`gmail_sorter/gmail/client.py`, `gmail_sorter/gmail/labels.py`, and `tests/unit/gmail/test_client.py`).
+- Task 7 — Email Processor & Prompt Builder has been executed (`gmail_sorter/processor/email_parser.py`, `gmail_sorter/processor/prompt_builder.py`, and `tests/unit/processor/`).
 - Local environment currently lacks a Python runtime (`python: command not found`), so pytest execution for newly added tests could not be verified in-session.
-- **Next task to execute:** Task 7 — Email Processor & Prompt Builder.
+- **Next task to execute:** Task 8 — LLM Client.
 
 ---
 
