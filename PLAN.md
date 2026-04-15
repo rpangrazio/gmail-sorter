@@ -22,12 +22,15 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - Task 12 — Observability has been executed (`gmail_sorter/observability/logging.py`, `gmail_sorter/observability/metrics.py`, `gmail_sorter/observability/health.py`, and `tests/unit/observability/`).
 - Task 13 — CLI has been executed (`gmail_sorter/cli.py` and `tests/unit/test_cli.py`).
 - PRD-to-plan comparison completed; current task sequence remains aligned with PRD scope and ordering, with no additional plan tasks required at this checkpoint.
-- Repository comparison against this plan confirms Tasks 1–15 are implemented; Tasks 16–17 remain pending.
+- Repository comparison against this plan confirms Tasks 1–16 are implemented; Task 17 remains pending.
 - Task 14 — Integration Tests has been executed (`tests/integration/test_database.py`, `tests/integration/test_gmail_client.py`, `tests/integration/test_llm_client.py`, and `tests/integration/test_pipeline.py`).
 - Local environment currently lacks a Python runtime (`python: command not found`, `python3: command not found`), so pytest execution for newly added tests could not be verified in-session.
 - Task 15 — End-to-End Tests has been executed (`tests/e2e/test_full_pipeline.py` and `tests/e2e/test_backfill.py`).
 - PRD-to-plan comparison revalidated after Task 15 execution; task ordering and remaining scope are still aligned to PRD requirements.
-- **Next task to execute:** Task 16 — Load & Performance Tests.
+- Task 16 — Load & Performance Tests has been executed (`tests/load/test_backfill_throughput.py`, `tests/load/test_latency.py`, and `tests/load/test_memory.py`).
+- PRD-to-plan comparison revalidated after Task 16 execution; task ordering and remaining scope are still aligned to PRD requirements.
+- Local environment currently lacks a Python runtime (`python: command not found`, `python3: command not found`), so pytest execution for newly added load tests could not be verified in-session.
+- **Next task to execute:** Task 17 — Final Integration & Packaging.
 
 ---
 

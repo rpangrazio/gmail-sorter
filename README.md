@@ -34,11 +34,12 @@ This repository currently contains:
 - Unit tests for CLI command behavior (`tests/unit/test_cli.py`)
 - Implemented integration test coverage for database, Gmail client behavior, LLM client behavior, and pipeline composition (`tests/integration/`)
 - Implemented end-to-end test coverage for CLI `run` and `backfill` workflows (`tests/e2e/test_full_pipeline.py`, `tests/e2e/test_backfill.py`)
+- Implemented load and performance test coverage for throughput, end-to-end latency, and idle listener memory footprint (`tests/load/test_backfill_throughput.py`, `tests/load/test_latency.py`, `tests/load/test_memory.py`)
 - Added DLQ persistence in classification flow for unrecoverable classification failures to satisfy PRD error-handling expectations (`gmail_sorter/classifier/engine.py`)
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-Implementation tasks continue to be tracked in `PLAN.md`, with Task 16 (Load & Performance Tests) next.
+Implementation tasks continue to be tracked in `PLAN.md`, with Task 17 (Final Integration & Packaging) next.
 
 ## Project Structure
 
@@ -91,6 +92,12 @@ python -m pytest tests/integration/
 python -m pytest tests/e2e/
 ```
 
+7. Run load and performance tests:
+
+```bash
+python -m pytest tests/load/
+```
+
 ## Roadmap
 
-Implementation proceeds by dependency order in `PLAN.md`, with Task 16 (Load & Performance Tests) next.
+Implementation proceeds by dependency order in `PLAN.md`, with Task 17 (Final Integration & Packaging) next.
