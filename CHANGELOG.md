@@ -49,6 +49,7 @@ All notable changes to this project are documented in this file.
 - Unit tests for Task 12 in `tests/unit/observability/test_logging.py` and `tests/unit/observability/test_health.py` covering structured log payload shape and health endpoint response status behavior.
 - Click-based CLI implementation in `gmail_sorter/cli.py` with PRD-aligned global flags and subcommands (`run`, `backfill`, `validate-config`, `auth`, `stats`), runtime override handling, graceful listener shutdown, and optional concurrent backfill execution.
 - Unit tests for Task 13 in `tests/unit/test_cli.py` covering valid/invalid `validate-config` execution and `--version` output behavior.
+- Integration tests for Task 14 in `tests/integration/test_database.py`, `tests/integration/test_gmail_client.py`, `tests/integration/test_llm_client.py`, and `tests/integration/test_pipeline.py` covering repository persistence round-trips, label lifecycle behavior, LLM retry/error behavior, and end-to-end classification composition.
 
 ### Changed
 
@@ -68,3 +69,5 @@ All notable changes to this project are documented in this file.
 - Updated `README.md` to include observability module/test coverage and Task 13 as the next implementation milestone.
 - Updated `PLAN.md` after PRD and repository comparison to mark Task 13 complete and set Task 14 as the next task.
 - Updated `README.md` to include CLI module/test coverage and Task 14 as the next implementation milestone.
+- Updated `PLAN.md` after PRD and repository comparison to mark Task 14 complete and set Task 15 as the next task.
+- Updated `README.md` to include integration test coverage and Task 15 as the next implementation milestone.

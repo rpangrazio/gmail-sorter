@@ -32,10 +32,11 @@ This repository currently contains:
 - Unit tests for observability behavior (`tests/unit/observability/`)
 - Implemented Click CLI with global flags and commands (`run`, `backfill`, `validate-config`, `auth`, `stats`) in `gmail_sorter/cli.py`
 - Unit tests for CLI command behavior (`tests/unit/test_cli.py`)
+- Implemented integration test coverage for database, Gmail client behavior, LLM client behavior, and pipeline composition (`tests/integration/`)
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-Implementation tasks continue to be tracked in `PLAN.md`, with Task 14 (Integration Tests) next.
+Implementation tasks continue to be tracked in `PLAN.md`, with Task 15 (End-to-End Tests) next.
 
 ## Project Structure
 
@@ -76,6 +77,12 @@ python -m pytest tests/unit/test_cli.py
 python -m pytest tests/ --collect-only
 ```
 
+5. Run integration tests:
+
+```bash
+python -m pytest tests/integration/
+```
+
 ## Roadmap
 
-Implementation proceeds by dependency order in `PLAN.md`, with Task 14 (Integration Tests) next.
+Implementation proceeds by dependency order in `PLAN.md`, with Task 15 (End-to-End Tests) next.
