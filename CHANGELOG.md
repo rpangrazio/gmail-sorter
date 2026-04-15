@@ -43,6 +43,10 @@ All notable changes to this project are documented in this file.
 - Unit tests for Task 10 in `tests/unit/pubsub/test_listener.py` and `tests/unit/pubsub/test_watcher.py` covering ack behavior, failure redelivery behavior, history pagination extraction, and renewal timer scheduling.
 - Backfill engine implementation in `gmail_sorter/backfill/engine.py` with resumable state detection, paginated mailbox scanning, bounded async concurrency, progress logging, and interrupted/completed state persistence.
 - Unit tests for Task 11 in `tests/unit/backfill/test_engine.py` covering full pagination processing, interrupted-state resume token handling, concurrency limits, and cancellation state updates.
+- Structured JSON logging implementation in `gmail_sorter/observability/logging.py` with required fields (`timestamp`, `level`, `message`, `error_type`, `context`) and root logger configuration helper.
+- Prometheus metrics collector implementation in `gmail_sorter/observability/metrics.py` with all required counters/histogram and HTTP exposure support.
+- Health endpoint server implementation in `gmail_sorter/observability/health.py` with `/health` 200/503 JSON responses and healthy/unhealthy state controls.
+- Unit tests for Task 12 in `tests/unit/observability/test_logging.py` and `tests/unit/observability/test_health.py` covering structured log payload shape and health endpoint response status behavior.
 
 ### Changed
 
@@ -58,3 +62,5 @@ All notable changes to this project are documented in this file.
 - Updated `README.md` to include Pub/Sub module/test coverage and Task 11 as the next implementation milestone.
 - Updated `PLAN.md` after PRD and repository comparison to mark Task 11 complete and set Task 12 as the next task.
 - Updated `README.md` to include backfill module/test coverage and Task 12 as the next implementation milestone.
+- Updated `PLAN.md` after PRD and repository comparison to mark Task 12 complete and set Task 13 as the next task.
+- Updated `README.md` to include observability module/test coverage and Task 13 as the next implementation milestone.
