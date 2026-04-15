@@ -37,8 +37,10 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - Task 17.3 complete: configuration validation passes with `gmail-sorter --config config.yaml validate-config`.
 - Task 17.4 complete: Docker image builds successfully (`docker build -t gmail-sorter:latest .`).
 - Task 17.5 complete: `prompts/classify_email.j2` rendering verified with sample data in container.
-- PRD-to-plan comparison revalidated after Task 17 execution; no additional tasks are required.
-- **Next task to execute:** None. Plan complete.
+- PRD verification sweep completed on April 15, 2026 against the implemented repository.
+- Verification found unresolved PRD gaps; plan reopened and `.DONE` completion sentinel removed.
+- Notable requirement gaps identified: FR-011, FR-025, FR-026, FR-055, FR-075, NFR-004, SEC-001, SEC-004, SEC-005, ERR-001, ERR-005, and PRD 14.3 health-port configurability.
+- **Next task to execute:** Task 18 — PRD Gap Remediation.
 
 ---
 
@@ -936,6 +938,100 @@ assert "test@example.com" in out
 ```
 
 **Acceptance criteria:** All 17.1–17.5 checks pass. The system is ready for deployment.
+
+---
+
+## Task 18 — PRD Gap Remediation
+
+**Goal:** Close all requirement gaps discovered during PRD verification so repository state matches PRD v1 requirements.
+
+### 18.1 Expand configuration schema for missing runtime controls
+
+Update `gmail_sorter/config/models.py` and `config.yaml` to add typed fields that are currently required by behavior but not represented in validated config:
+
+- `classification.allowlist: list[str] = []`
+- `classification.blocklist: list[str] = []`
+- `processing.backfill_progress_interval: int = 100`
+- `pubsub.push_endpoint: str | None = None`
+- `pubsub.push_port: int = 8081`
+- `observability.health_port: int = 8080`
+- `observability.metrics_port: int = 9090`
+- `database.retention_days: int = 90`
+- `alerts.webhook_url: str | None = None`
+
+Update `gmail_sorter/config/loader.py` tests to validate defaults and reject invalid values (negative interval/retention, out-of-range ports).
+
+### 18.2 Implement encrypted token-at-rest fallback
+
+Update `gmail_sorter/gmail/auth.py` to satisfy SEC-001 when keyring is unavailable by encrypting token file content at rest instead of writing plaintext JSON.
+
+- Use a deterministic local key-loading strategy (keyring-backed key if available; otherwise encrypted-key file with `0600` permissions).
+- Keep token refresh and scope validation behavior unchanged.
+- Add/update tests in `tests/unit/gmail/test_auth.py` to assert encrypted file write path and backward-compatible read behavior.
+
+### 18.3 Preserve full extraction set and sender-policy behavior
+
+Update `gmail_sorter/processor/email_parser.py` to retain the `To` field in `ProcessedEmail.headers` and ensure prompt rendering can include all PRD-required extracted fields (FR-011).
+
+Update `gmail_sorter/classifier/engine.py` to read sender allowlist/blocklist from the new typed config fields only (SEC-004), removing heuristic section scanning.
+
+Add unit tests under `tests/unit/processor/` and `tests/unit/classifier/` for `To` propagation and sender policy enforcement from config.
+
+### 18.4 Complete Pub/Sub configurability and outcome logging semantics
+
+Update `gmail_sorter/pubsub/listener.py` to:
+
+- Use validated `push_port`/`push_endpoint` config fields (FR-025).
+- Log explicit `success`, `skip`, and `error` outcomes with both Pub/Sub message ID and Gmail message ID (FR-026).
+- Preserve ack-after-successful-processing semantics (FR-024).
+
+Add tests in `tests/unit/pubsub/test_listener.py` covering skip outcome logging and push-mode configured endpoint/port wiring.
+
+### 18.5 Add multi-label classification mode
+
+Update `gmail_sorter/llm/response_parser.py`, `gmail_sorter/llm/client.py`, and `gmail_sorter/classifier/engine.py` to support `classification.multi_label = true` (FR-055):
+
+- Accept a structured response containing multiple categories when enabled.
+- Validate each returned category against configured categories; apply fallback handling for invalid/low-confidence results.
+- Apply all resolved label IDs in one modify call (or equivalent repeated safe calls), preserving idempotency.
+- Persist classification audit records in a PRD-aligned way for multi-label outcomes.
+
+Add tests in `tests/unit/llm/` and `tests/unit/classifier/` for enabled/disabled multi-label paths.
+
+### 18.6 Implement retention cleanup and richer stats reporting
+
+Update `gmail_sorter/db/repository.py` and `gmail_sorter/cli.py`:
+
+- Add retention enforcement utilities for `classifications` and `dead_letter_queue` based on `database.retention_days` (NFR-004).
+- Extend `stats` output to support date-range reporting and explicit error-rate calculation using retained records.
+
+Add tests in `tests/unit/db/test_repository.py` and `tests/unit/test_cli.py` for retention pruning and date-window stats.
+
+### 18.7 Enforce PRD error taxonomy and critical webhook notifications
+
+Update pipeline logging and error handling modules to satisfy ERR-001 and ERR-005:
+
+- Standardize emitted `error_type` values to `{auth_error, api_error, llm_error, config_error, pubsub_error}`.
+- Ensure error logs and `classification_errors_total` metrics always include one of the required labels.
+- Add optional webhook notification dispatch for critical failures with payload fields: `error_type`, `message_id`, `timestamp`, `description`.
+
+Add unit tests under `tests/unit/classifier/`, `tests/unit/pubsub/`, and `tests/unit/observability/` for taxonomy mapping and webhook payload emission.
+
+### 18.8 Enforce TLS 1.2+ for outbound HTTP clients
+
+Update `gmail_sorter/llm/client.py` (and any non-Google raw HTTP clients) to explicitly enforce TLS >= 1.2 (SEC-005), and add tests to ensure insecure TLS contexts are rejected.
+
+### 18.9 Health and metrics ports from configuration
+
+Update `gmail_sorter/cli.py` and observability wiring to start Health and Prometheus servers on configured ports instead of hardcoded values, satisfying PRD 14.3 configurability.
+
+Add CLI runtime wiring tests validating configured port usage.
+
+**Acceptance criteria:**
+
+- PRD gaps listed in Execution Status are all addressed with passing unit/integration coverage.
+- `README.md`, `CHANGELOG.md`, and this plan reflect the remediated verification status.
+- Completion sentinel may be reintroduced only after a follow-up verification confirms full PRD compliance.
 
 ---
 

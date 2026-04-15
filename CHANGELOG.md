@@ -62,6 +62,7 @@ All notable changes to this project are documented in this file.
 - Expanded CLI unit coverage in `tests/unit/test_cli.py` for runtime overrides, `auth`, `stats`, and dependency wiring in `_build_engine`.
 - Expanded LLM client unit coverage in `tests/unit/llm/test_client.py` for prompt logging enabled behavior and response extraction error branches.
 - Added completion sentinel file `.DONE` to indicate plan completion.
+- Added PRD verification findings documenting unresolved requirement gaps and reopening implementation planning in `PLAN.md` Task 18.
 
 ### Changed
 
@@ -89,3 +90,8 @@ All notable changes to this project are documented in this file.
 - Updated `README.md` to include load/performance test coverage and Task 17 as the next implementation milestone.
 - Updated `PLAN.md` after PRD comparison and repository verification to mark Task 17 complete, document containerized verification outcomes, and mark the plan complete.
 - Updated `README.md` to document final integration/packaging completion and project completion state.
+- Updated `PLAN.md` and `README.md` after a fresh PRD-vs-repository verification to record requirement gaps, resume implementation loop, and remove completion-state language.
+
+### Removed
+
+- Removed `.DONE` completion sentinel after verification identified remaining PRD implementation gaps.

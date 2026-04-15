@@ -46,7 +46,7 @@ This repository currently contains:
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-Implementation tasks tracked in `PLAN.md` are complete. Repository completion is marked by `.DONE`.
+PRD verification was re-run on April 15, 2026 and found unresolved requirement gaps. Implementation is now back in active remediation mode, tracked in `PLAN.md` Task 18. The prior completion sentinel `.DONE` has been removed.
 
 ## Project Structure
 
@@ -107,4 +107,4 @@ python -m pytest tests/load/
 
 ## Roadmap
 
-All planned tasks are complete. See `PLAN.md` execution status and `.DONE` for completion state.
+Plan execution has been reopened for PRD gap remediation. See `PLAN.md` execution status and Task 18 for the active implementation queue.
