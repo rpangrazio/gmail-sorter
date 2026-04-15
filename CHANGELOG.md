@@ -37,6 +37,10 @@ All notable changes to this project are documented in this file.
 - Classification idempotency implementation in `gmail_sorter/classifier/idempotency.py` with database and label-based duplicate detection.
 - Classification engine orchestration in `gmail_sorter/classifier/engine.py` covering fetch, idempotency checks, sender policy gating, prompt generation, LLM response parsing, dry-run handling, label application, DB persistence, and metrics updates.
 - Unit tests for Task 9 in `tests/unit/classifier/test_idempotency.py` and `tests/unit/classifier/test_engine.py` covering idempotent skip conditions, successful classification path, fallback routing, dry-run behavior, and early skip behavior without LLM calls.
+- Pub/Sub watcher implementation in `gmail_sorter/pubsub/watcher.py` with Gmail watch registration, six-day renewal scheduling, and timer lifecycle management.
+- Pub/Sub listener implementation in `gmail_sorter/pubsub/listener.py` with topic/subscription provisioning, pull and push mode support, Gmail history expansion, post-classification ack semantics, and per-message outcome logging.
+- Gmail client history API support in `gmail_sorter/gmail/client.py` via `list_history` for resolving message IDs from Pub/Sub notifications.
+- Unit tests for Task 10 in `tests/unit/pubsub/test_listener.py` and `tests/unit/pubsub/test_watcher.py` covering ack behavior, failure redelivery behavior, history pagination extraction, and renewal timer scheduling.
 
 ### Changed
 
@@ -48,3 +52,5 @@ All notable changes to this project are documented in this file.
 - Updated `README.md` to include LLM module/test coverage and Task 9 as the next implementation milestone.
 - Updated `PLAN.md` after PRD and repository comparison to mark Task 9 complete and set Task 10 as the next task.
 - Updated `README.md` to include classifier module/test coverage and Task 10 as the next implementation milestone.
+- Updated `PLAN.md` after PRD and repository comparison to mark Task 10 complete and set Task 11 as the next task.
+- Updated `README.md` to include Pub/Sub module/test coverage and Task 11 as the next implementation milestone.

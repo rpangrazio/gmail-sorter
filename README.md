@@ -24,10 +24,12 @@ This repository currently contains:
 - Unit tests for LLM behavior (`tests/unit/llm/`)
 - Implemented classification engine and idempotency checks (`gmail_sorter/classifier/engine.py`, `gmail_sorter/classifier/idempotency.py`)
 - Unit tests for classification engine behavior (`tests/unit/classifier/`)
+- Implemented Pub/Sub watcher and listener (`gmail_sorter/pubsub/watcher.py`, `gmail_sorter/pubsub/listener.py`)
+- Unit tests for Pub/Sub behavior (`tests/unit/pubsub/`)
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-Implementation tasks continue to be tracked in `PLAN.md`, with Task 10 (Pub/Sub Integration) next.
+Implementation tasks continue to be tracked in `PLAN.md`, with Task 11 (Backfill Engine) next.
 
 ## Project Structure
 
@@ -56,6 +58,7 @@ python -m pytest tests/unit/utils/
 python -m pytest tests/unit/processor/
 python -m pytest tests/unit/llm/
 python -m pytest tests/unit/classifier/
+python -m pytest tests/unit/pubsub/
 ```
 
 4. Run test discovery:
@@ -66,4 +69,4 @@ python -m pytest tests/ --collect-only
 
 ## Roadmap
 
-Implementation proceeds by dependency order in `PLAN.md`, with Task 10 (Pub/Sub Integration) next.
+Implementation proceeds by dependency order in `PLAN.md`, with Task 11 (Backfill Engine) next.

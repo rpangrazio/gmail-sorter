@@ -124,3 +124,21 @@ class GmailClient:
             "labelFilterAction": "include",
         }
         return self._service.users().watch(userId="me", body=body).execute()
+
+    @with_retry(max_retries=3)
+    def list_history(
+        self,
+        start_history_id: str,
+        page_token: str | None = None,
+    ) -> dict[str, Any]:
+        """List Gmail history changes beginning at ``start_history_id``."""
+
+        request: dict[str, Any] = {
+            "userId": "me",
+            "startHistoryId": start_history_id,
+            "historyTypes": ["messageAdded"],
+        }
+        if page_token is not None:
+            request["pageToken"] = page_token
+
+        return self._service.users().history().list(**request).execute()
