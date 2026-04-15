@@ -40,7 +40,10 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - PRD verification sweep completed on April 15, 2026 against the implemented repository.
 - Verification found unresolved PRD gaps; plan reopened and `.DONE` completion sentinel removed.
 - Notable requirement gaps identified: FR-011, FR-025, FR-026, FR-055, FR-075, NFR-004, SEC-001, SEC-004, SEC-005, ERR-001, ERR-005, and PRD 14.3 health-port configurability.
-- **Next task to execute:** Task 18 — PRD Gap Remediation.
+- Task 18.1 — Expand configuration schema for missing runtime controls has been executed (`gmail_sorter/config/models.py`, `config.yaml`, `tests/unit/config/test_models.py`, and `tests/unit/config/test_loader.py`).
+- Task 18.1 result: typed runtime controls were added for sender policy lists, backfill progress interval, push endpoint/port, observability ports, DB retention, and webhook URL, with validation constraints and unit coverage updates.
+- Local environment still lacks `pytest` (`pytest: command not found`), so updated tests could not be executed in-session.
+- **Next task to execute:** Task 18.2 — Implement encrypted token-at-rest fallback.
 
 ---
 

@@ -73,6 +73,15 @@ def test_valid_config_loads_without_error(valid_config_dict: dict) -> None:
 
     config = AppConfig.model_validate(valid_config_dict)
     assert config.gmail.credentials_path == "./credentials.json"
+    assert config.classification.allowlist == []
+    assert config.classification.blocklist == []
+    assert config.processing.backfill_progress_interval == 100
+    assert config.pubsub.push_endpoint is None
+    assert config.pubsub.push_port == 8081
+    assert config.database.retention_days == 90
+    assert config.observability.health_port == 8080
+    assert config.observability.metrics_port == 9090
+    assert config.alerts.webhook_url is None
 
 
 def test_duplicate_category_name_raises_value_error(valid_config_dict: dict) -> None:
@@ -124,6 +133,40 @@ def test_confidence_threshold_outside_range_raises_validation_error(
 
     payload = copy.deepcopy(valid_config_dict)
     payload["classification"]["confidence_threshold"] = 1.1
+
+    with pytest.raises(ValidationError):
+        AppConfig.model_validate(payload)
+
+
+def test_negative_backfill_progress_interval_raises_validation_error(
+    valid_config_dict: dict,
+) -> None:
+    """Backfill progress interval must be a positive integer."""
+
+    payload = copy.deepcopy(valid_config_dict)
+    payload["processing"]["backfill_progress_interval"] = 0
+
+    with pytest.raises(ValidationError):
+        AppConfig.model_validate(payload)
+
+
+def test_out_of_range_ports_raise_validation_error(valid_config_dict: dict) -> None:
+    """Port fields must be in the valid TCP range."""
+
+    payload = copy.deepcopy(valid_config_dict)
+    payload["pubsub"]["push_port"] = 70000
+
+    with pytest.raises(ValidationError):
+        AppConfig.model_validate(payload)
+
+
+def test_negative_retention_days_raises_validation_error(
+    valid_config_dict: dict,
+) -> None:
+    """Retention period must be at least one day."""
+
+    payload = copy.deepcopy(valid_config_dict)
+    payload["database"]["retention_days"] = -1
 
     with pytest.raises(ValidationError):
         AppConfig.model_validate(payload)

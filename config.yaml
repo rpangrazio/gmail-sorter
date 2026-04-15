@@ -40,6 +40,10 @@ pubsub:
   # Subscription mode: "push" (HTTP endpoint) or "pull" (long-polling).
   mode: "pull"  # Options: push | pull
 
+  # Push-mode HTTP path and bind port for receiving Pub/Sub callbacks.
+  push_endpoint: "/pubsub"
+  push_port: 8081
+
 # -----------------------------------------------------------------------------
 # LLM Provider Settings
 # -----------------------------------------------------------------------------
@@ -85,6 +89,12 @@ classification:
   # Enable multi-label classification. When true, the LLM may return
   # multiple categories for a single email.
   multi_label: false
+
+  # Optional sender-domain policy controls.
+  # If allowlist is non-empty, only listed domains are processed.
+  allowlist: []
+  # Domains to always exclude from LLM processing.
+  blocklist: []
 
 # -----------------------------------------------------------------------------
 # Category Definitions
@@ -163,6 +173,9 @@ processing:
   # If true, log classifications without applying Gmail labels.
   dry_run: false
 
+  # Backfill progress log interval in processed messages.
+  backfill_progress_interval: 100
+
 # -----------------------------------------------------------------------------
 # Logging Settings
 # -----------------------------------------------------------------------------
@@ -180,3 +193,23 @@ logging:
 database:
   # Path to the SQLite database file for classification tracking.
   path: "./gmail_sorter.db"
+
+  # Retention period for classification and DLQ records.
+  retention_days: 90
+
+# -----------------------------------------------------------------------------
+# Observability Settings
+# -----------------------------------------------------------------------------
+observability:
+  # HTTP port for health check endpoint.
+  health_port: 8080
+
+  # HTTP port for Prometheus metrics endpoint.
+  metrics_port: 9090
+
+# -----------------------------------------------------------------------------
+# Alerting Settings
+# -----------------------------------------------------------------------------
+alerts:
+  # Optional webhook URL for critical error notifications.
+  webhook_url: null

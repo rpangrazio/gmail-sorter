@@ -61,6 +61,12 @@ database:
     config = load_config(config_path)
     assert config.gmail.credentials_path == "./credentials.json"
     assert config.categories[0].name == "alerts"
+    assert config.processing.backfill_progress_interval == 100
+    assert config.pubsub.push_port == 8081
+    assert config.database.retention_days == 90
+    assert config.observability.health_port == 8080
+    assert config.observability.metrics_port == 9090
+    assert config.alerts.webhook_url is None
 
 
 def test_load_config_exits_on_yaml_parse_error(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -130,3 +136,78 @@ database:
     stderr = capsys.readouterr().err
     assert exc.value.code == 1
     assert "gmail.credentials_path" in stderr
+
+
+@pytest.mark.parametrize(
+    ("snippet", "expected_path"),
+    [
+        ("processing:\n  backfill_progress_interval: 0", "processing.backfill_progress_interval"),
+        ("database:\n  retention_days: 0", "database.retention_days"),
+        ("pubsub:\n  push_port: 70000", "pubsub.push_port"),
+        ("observability:\n  health_port: 0", "observability.health_port"),
+    ],
+)
+def test_load_config_exits_on_invalid_new_runtime_controls(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    snippet: str,
+    expected_path: str,
+) -> None:
+    """Loader should reject invalid values for newly added runtime controls."""
+
+    config_path = tmp_path / "invalid_runtime_controls.yaml"
+    config_path.write_text(
+        f"""
+gmail:
+  credentials_path: "./credentials.json"
+  token_path: "./token.json"
+  scopes:
+    - "https://www.googleapis.com/auth/gmail.readonly"
+    - "https://www.googleapis.com/auth/gmail.labels"
+    - "https://www.googleapis.com/auth/gmail.modify"
+pubsub:
+  project_id: "project"
+  topic: "topic"
+  subscription: "subscription"
+  mode: "pull"
+llm:
+  provider: "github_copilot"
+  model: "gpt-4o"
+  api_key_env: "GITHUB_COPILOT_API_KEY"
+  timeout_seconds: 30
+  max_retries: 3
+  system_prompt: "system"
+  prompt_template: "./prompts/classify_email.j2"
+classification:
+  confidence_threshold: 0.7
+  fallback_category: "uncategorized"
+  multi_label: false
+categories:
+  - name: "alerts"
+    label: "AutoSort/Alerts"
+    description: "System notifications"
+processing:
+  body_max_length: 4096
+  batch_size: 50
+  backfill_concurrency: 5
+  archive_after_label: false
+  dry_run: false
+logging:
+  level: "INFO"
+  log_prompts: false
+database:
+  path: "./gmail_sorter.db"
+observability:
+  health_port: 8080
+  metrics_port: 9090
+{snippet}
+""".strip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        load_config(config_path)
+
+    stderr = capsys.readouterr().err
+    assert exc.value.code == 1
+    assert expected_path in stderr

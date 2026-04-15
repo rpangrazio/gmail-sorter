@@ -26,6 +26,8 @@ class PubSubConfig(BaseModel):
     topic: str
     subscription: str
     mode: Literal["push", "pull"]
+    push_endpoint: str | None = None
+    push_port: int = Field(default=8081, ge=1, le=65535)
 
 
 class LlmConfig(BaseModel):
@@ -46,6 +48,8 @@ class ClassificationConfig(BaseModel):
     confidence_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
     fallback_category: str = "uncategorized"
     multi_label: bool = False
+    allowlist: list[str] = Field(default_factory=list)
+    blocklist: list[str] = Field(default_factory=list)
 
 
 class CategoryConfig(BaseModel):
@@ -64,6 +68,7 @@ class ProcessingConfig(BaseModel):
     backfill_concurrency: int = 5
     archive_after_label: bool = False
     dry_run: bool = False
+    backfill_progress_interval: int = Field(default=100, ge=1)
 
 
 class LoggingConfig(BaseModel):
@@ -77,6 +82,20 @@ class DatabaseConfig(BaseModel):
     """SQLite database configuration."""
 
     path: str = "./gmail_sorter.db"
+    retention_days: int = Field(default=90, ge=1)
+
+
+class ObservabilityConfig(BaseModel):
+    """Ports and toggles for observability endpoints."""
+
+    health_port: int = Field(default=8080, ge=1, le=65535)
+    metrics_port: int = Field(default=9090, ge=1, le=65535)
+
+
+class AlertsConfig(BaseModel):
+    """Alerting and notification settings."""
+
+    webhook_url: str | None = None
 
 
 class AppConfig(BaseModel):
@@ -90,6 +109,8 @@ class AppConfig(BaseModel):
     processing: ProcessingConfig
     logging: LoggingConfig
     database: DatabaseConfig
+    observability: ObservabilityConfig = Field(default_factory=ObservabilityConfig)
+    alerts: AlertsConfig = Field(default_factory=AlertsConfig)
 
     @model_validator(mode="after")
     def validate_unique_categories(self) -> AppConfig:

@@ -63,6 +63,10 @@ All notable changes to this project are documented in this file.
 - Expanded LLM client unit coverage in `tests/unit/llm/test_client.py` for prompt logging enabled behavior and response extraction error branches.
 - Added completion sentinel file `.DONE` to indicate plan completion.
 - Added PRD verification findings documenting unresolved requirement gaps and reopening implementation planning in `PLAN.md` Task 18.
+- Added PRD gap-remediation Task 18.1 implementation updates:
+  - Extended `gmail_sorter/config/models.py` with validated runtime controls for sender allow/block lists, backfill progress interval, Pub/Sub push endpoint and port, observability health/metrics ports, database retention days, and alerts webhook URL.
+  - Updated `config.yaml` defaults to include the new runtime control sections and fields.
+  - Expanded config tests in `tests/unit/config/test_models.py` and `tests/unit/config/test_loader.py` to verify default values and invalid-value rejection for new controls.
 
 ### Changed
 
@@ -91,6 +95,8 @@ All notable changes to this project are documented in this file.
 - Updated `PLAN.md` after PRD comparison and repository verification to mark Task 17 complete, document containerized verification outcomes, and mark the plan complete.
 - Updated `README.md` to document final integration/packaging completion and project completion state.
 - Updated `PLAN.md` and `README.md` after a fresh PRD-vs-repository verification to record requirement gaps, resume implementation loop, and remove completion-state language.
+- Updated `PLAN.md` execution status to mark Task 18.1 complete and set Task 18.2 as the next implementation task.
+- Updated `README.md` to document Task 18.1 remediation status and new config/runtime-control coverage.
 
 ### Removed
 

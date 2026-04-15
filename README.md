@@ -36,6 +36,10 @@ This repository currently contains:
 - Implemented end-to-end test coverage for CLI `run` and `backfill` workflows (`tests/e2e/test_full_pipeline.py`, `tests/e2e/test_backfill.py`)
 - Implemented load and performance test coverage for throughput, end-to-end latency, and idle listener memory footprint (`tests/load/test_backfill_throughput.py`, `tests/load/test_latency.py`, `tests/load/test_memory.py`)
 - Added DLQ persistence in classification flow for unrecoverable classification failures to satisfy PRD error-handling expectations (`gmail_sorter/classifier/engine.py`)
+- Expanded configuration schema coverage for PRD gap remediation Task 18.1:
+  - Added typed runtime controls in `gmail_sorter/config/models.py` for sender allow/block lists, backfill progress interval, Pub/Sub push endpoint and port, observability ports, DB retention days, and alert webhook URL
+  - Updated default `config.yaml` with corresponding runtime-control fields and defaults
+  - Expanded config model/loader unit coverage in `tests/unit/config/test_models.py` and `tests/unit/config/test_loader.py` for new defaults and invalid-value validation
 - Completed final integration and packaging checks with containerized verification for installability, full test suite execution, configuration validation, Docker build, and prompt rendering
 - Added packaging and test hardening updates:
   - Explicit setuptools package discovery for `gmail_sorter` in `pyproject.toml`
@@ -46,7 +50,7 @@ This repository currently contains:
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-PRD verification was re-run on April 15, 2026 and found unresolved requirement gaps. Implementation is now back in active remediation mode, tracked in `PLAN.md` Task 18. The prior completion sentinel `.DONE` has been removed.
+PRD verification was re-run on April 15, 2026 and found unresolved requirement gaps. Implementation is in active remediation mode, tracked in `PLAN.md` Task 18. Task 18.1 is complete and Task 18.2 is next.
 
 ## Project Structure
 
