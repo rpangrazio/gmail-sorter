@@ -21,8 +21,15 @@ All notable changes to this project are documented in this file.
 - Unit tests for Task 3 in `tests/unit/db/test_repository.py` covering initialization, idempotent upsert, DLQ, backfill state, and stats.
 - Gmail OAuth authenticator in `gmail_sorter/gmail/auth.py` with interactive auth flow, token refresh, keyring fallback behavior, scope validation, and 0600 token file permissions.
 - Unit tests for Task 4 in `tests/unit/gmail/test_auth.py` covering chmod enforcement, refresh logic, and required scope validation.
+- Retry utility in `gmail_sorter/utils/retry.py` with exponential backoff, optional jitter, and support for async and sync callables.
+- MIME utility in `gmail_sorter/utils/mime.py` for recursive multipart extraction, HTML-to-text fallback, safe base64 decoding, truncation, and data URI sanitization.
+- Domain filtering utility in `gmail_sorter/utils/security.py` implementing allowlist/blocklist logic for sender domains.
+- Unit tests for Task 6 in `tests/unit/utils/test_retry.py`, `tests/unit/utils/test_mime.py`, and `tests/unit/utils/test_security.py`.
+- Gmail API client implementation in `gmail_sorter/gmail/client.py` covering message retrieval/listing, label lifecycle, label application, watch registration, retry wrapping, and dry-run behavior.
+- Label manager implementation in `gmail_sorter/gmail/labels.py` for startup label provisioning by category.
+- Unit tests for Task 5 in `tests/unit/gmail/test_client.py` covering label reuse, dry-run suppression of API calls, and archive label modification payloads.
 
 ### Changed
 
-- Updated `PLAN.md` to align execution status with completed Tasks 3 and 4, and set Task 6 as next by dependency order.
+- Updated `PLAN.md` to align execution status with completed Tasks 5 and 6, and set Task 7 as next by dependency order.
 - Updated `README.md` with current implementation status and expanded unit test commands.

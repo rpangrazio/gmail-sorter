@@ -14,10 +14,14 @@ This repository currently contains:
 - Unit tests for database behavior (`tests/unit/db/test_repository.py`)
 - Implemented Gmail OAuth authentication (`gmail_sorter/gmail/auth.py`)
 - Unit tests for OAuth authentication (`tests/unit/gmail/test_auth.py`)
+- Implemented shared utilities (`gmail_sorter/utils/retry.py`, `gmail_sorter/utils/mime.py`, `gmail_sorter/utils/security.py`)
+- Unit tests for utility helpers (`tests/unit/utils/`)
+- Implemented Gmail API client and label manager (`gmail_sorter/gmail/client.py`, `gmail_sorter/gmail/labels.py`)
+- Unit tests for Gmail client behavior (`tests/unit/gmail/test_client.py`)
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-Implementation tasks continue to be tracked in `PLAN.md`, with Task 6 (Utilities) next.
+Implementation tasks continue to be tracked in `PLAN.md`, with Task 7 (Email Processor & Prompt Builder) next.
 
 ## Project Structure
 
@@ -42,6 +46,7 @@ pip install -e ".[dev]"
 python -m pytest tests/unit/config/
 python -m pytest tests/unit/db/
 python -m pytest tests/unit/gmail/
+python -m pytest tests/unit/utils/
 ```
 
 4. Run test discovery:
@@ -52,4 +57,4 @@ python -m pytest tests/ --collect-only
 
 ## Roadmap
 
-Implementation proceeds by dependency order in `PLAN.md`, with Task 6 (Utilities) next.
+Implementation proceeds by dependency order in `PLAN.md`, with Task 7 (Email Processor & Prompt Builder) next.
