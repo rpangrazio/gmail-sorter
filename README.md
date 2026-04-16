@@ -109,6 +109,56 @@ python -m pytest tests/e2e/
 python -m pytest tests/load/
 ```
 
+## Usage
+
+### Authentication
+
+First, authenticate with Gmail using OAuth 2.0:
+
+```bash
+gmail-sorter auth
+```
+
+This opens a browser flow. The token is saved to `token.json` (configurable via `gmail.token_path`).
+
+### Running the Service
+
+Start the real-time Pub/Sub listener to classify new emails:
+
+```bash
+gmail-sorter run
+```
+
+Options:
+- `--dry-run` - Log classifications without applying Gmail labels
+- `--log-level DEBUG` - Enable debug logging
+- `--config /path/to/config.yaml` - Use custom config file
+- `--backfill` - Run backfill alongside the listener
+
+### Running Backfill
+
+Process all existing emails in the mailbox (one-time operation):
+
+```bash
+gmail-sorter backfill
+```
+
+### Validating Configuration
+
+Check if config.yaml is valid:
+
+```bash
+gmail-sorter validate-config
+```
+
+### Viewing Statistics
+
+Print classification statistics from the local database:
+
+```bash
+gmail-sorter stats
+```
+
 ## Roadmap
 
 Plan execution has been reopened for PRD gap remediation. See `PLAN.md` execution status and Task 18 for the active implementation queue.
