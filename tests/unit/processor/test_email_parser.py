@@ -107,6 +107,7 @@ def test_process_message_extracts_selected_headers() -> None:
         "payload": {
             "headers": [
                 {"name": "From", "value": "sender@example.com"},
+                {"name": "To", "value": "recipient@example.com"},
                 {"name": "Subject", "value": "Header test"},
                 {"name": "Date", "value": "Wed, 03 Jan 2026 00:00:00 +0000"},
                 {"name": "Reply-To", "value": "reply@example.com"},
@@ -121,3 +122,4 @@ def test_process_message_extracts_selected_headers() -> None:
 
     assert processed.headers["reply_to"] == "reply@example.com"
     assert processed.headers["list_unsubscribe"] == "true"
+    assert processed.headers["to"] == "recipient@example.com"

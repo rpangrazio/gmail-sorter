@@ -42,6 +42,7 @@ def process_message(raw: dict[str, Any], config: ProcessingConfig) -> ProcessedE
     body = body[: config.body_max_length]
 
     processed_headers = {
+        "to": extracted_headers.get("to", ""),
         "list_unsubscribe": extracted_headers.get("list_unsubscribe", "false"),
         "reply_to": extracted_headers.get("reply_to", ""),
     }

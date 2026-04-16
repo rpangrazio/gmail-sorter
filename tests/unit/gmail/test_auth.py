@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -75,3 +77,103 @@ def test_validate_scopes_raises_on_missing_scope() -> None:
 
     with pytest.raises(SystemExit):
         authenticator.validate_scopes(creds)
+
+
+def test_save_token_writes_encrypted_fallback_file(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Token fallback file should be encrypted and non-JSON plaintext."""
+
+    config = build_config()
+    config.token_path = str(tmp_path / "token.json")
+    authenticator = GmailAuthenticator(config)
+
+    creds = Mock()
+    creds.to_json.return_value = json.dumps(
+        {
+            "token": "abc",
+            "refresh_token": "ref",
+            "client_id": "id",
+            "client_secret": "secret",
+            "token_uri": "https://oauth2.googleapis.com/token",
+        }
+    )
+
+    monkeypatch.setattr(
+        "gmail_sorter.gmail.auth.keyring.set_password",
+        lambda *_: (_ for _ in ()).throw(RuntimeError("keyring down")),
+    )
+    monkeypatch.setattr("gmail_sorter.gmail.auth.keyring.get_password", lambda *_: None)
+
+    authenticator._save_token(creds)
+
+    token_path = Path(config.token_path)
+    content = token_path.read_text(encoding="utf-8")
+    assert content.startswith("enc:v1:")
+    assert not content.strip().startswith("{")
+
+
+def test_load_token_supports_legacy_plaintext_json(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Authenticator should still read legacy plaintext token files."""
+
+    config = build_config()
+    config.token_path = str(tmp_path / "token.json")
+    authenticator = GmailAuthenticator(config)
+
+    plaintext = {
+        "token": "legacy-token",
+        "refresh_token": "legacy-refresh",
+        "client_id": "legacy-id",
+        "client_secret": "legacy-secret",
+        "token_uri": "https://oauth2.googleapis.com/token",
+    }
+    Path(config.token_path).write_text(json.dumps(plaintext), encoding="utf-8")
+    monkeypatch.setattr("gmail_sorter.gmail.auth.keyring.get_password", lambda *_: None)
+
+    loaded = authenticator._load_token()
+
+    assert loaded is not None
+    assert getattr(loaded, "refresh_token", None) == "legacy-refresh"
+
+
+def test_load_token_reads_encrypted_file(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Authenticator should decrypt encrypted token payloads from disk."""
+
+    config = build_config()
+    config.token_path = str(tmp_path / "token.json")
+    authenticator = GmailAuthenticator(config)
+
+    payload = {
+        "token": "enc-token",
+        "refresh_token": "enc-refresh",
+        "client_id": "enc-id",
+        "client_secret": "enc-secret",
+        "token_uri": "https://oauth2.googleapis.com/token",
+    }
+
+    monkeypatch.setattr(
+        "gmail_sorter.gmail.auth.keyring.get_password",
+        lambda service, account: None,
+    )
+    monkeypatch.setattr(
+        "gmail_sorter.gmail.auth.keyring.set_password",
+        lambda *_: (_ for _ in ()).throw(RuntimeError("keyring down")),
+    )
+
+    encoded = authenticator._encrypt_token_payload(
+        json.dumps(payload),
+        authenticator._get_or_create_file_encryption_key(),
+    )
+    Path(config.token_path).write_text(encoded, encoding="utf-8")
+
+    loaded = authenticator._load_token()
+
+    assert loaded is not None
+    assert getattr(loaded, "refresh_token", None) == "enc-refresh"

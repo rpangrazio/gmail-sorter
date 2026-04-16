@@ -94,3 +94,40 @@ def test_parse_response_raises_on_non_json_content() -> None:
             fallback="uncategorized",
             threshold=0.7,
         )
+
+
+def test_parse_response_multi_label_enabled_parses_categories_list() -> None:
+    """Multi-label mode should parse and validate all returned categories."""
+
+    raw = (
+        '{"categories":[{"category":"alerts","confidence":0.9,'
+        '"reasoning":"Alert."},{"category":"unknown","confidence":0.8,'
+        '"reasoning":"Unknown."}]}'
+    )
+    parsed = parse_response(
+        raw_content=raw,
+        valid_categories=["alerts", "marketing"],
+        fallback="uncategorized",
+        threshold=0.7,
+        multi_label=True,
+    )
+
+    assert parsed.category == "alerts"
+    assert parsed.categories == ["alerts", "uncategorized"]
+    assert parsed.confidence == 0.9
+
+
+def test_parse_response_multi_label_disabled_uses_single_category_contract() -> None:
+    """Single-label mode should ignore categories list payloads."""
+
+    raw = '{"categories":[{"category":"alerts","confidence":0.9}]}'
+    parsed = parse_response(
+        raw_content=raw,
+        valid_categories=["alerts"],
+        fallback="uncategorized",
+        threshold=0.7,
+        multi_label=False,
+    )
+
+    assert parsed.category == "uncategorized"
+    assert parsed.categories == ["uncategorized"]

@@ -67,6 +67,29 @@ All notable changes to this project are documented in this file.
   - Extended `gmail_sorter/config/models.py` with validated runtime controls for sender allow/block lists, backfill progress interval, Pub/Sub push endpoint and port, observability health/metrics ports, database retention days, and alerts webhook URL.
   - Updated `config.yaml` defaults to include the new runtime control sections and fields.
   - Expanded config tests in `tests/unit/config/test_models.py` and `tests/unit/config/test_loader.py` to verify default values and invalid-value rejection for new controls.
+- Added PRD gap-remediation Task 18.2 implementation updates:
+  - Updated `gmail_sorter/gmail/auth.py` to encrypt token-file fallback content at rest using Fernet with deterministic key loading (keyring-backed key preferred, `0600` local key file fallback).
+  - Preserved keyring token storage and refresh/scope validation behavior while adding backward-compatible legacy plaintext token-file reads.
+  - Added `cryptography>=42.0` to `requirements.txt` for file-encryption support.
+  - Expanded `tests/unit/gmail/test_auth.py` with encrypted write-path assertions and encrypted/plaintext fallback read coverage.
+- Added PRD gap-remediation Task 18.3 implementation updates:
+  - Updated `gmail_sorter/processor/email_parser.py` to retain the `To` header in `ProcessedEmail.headers`.
+  - Updated `gmail_sorter/classifier/engine.py` sender policy handling to source allowlist/blocklist exclusively from typed `classification` config fields.
+  - Expanded tests in `tests/unit/processor/test_email_parser.py` and `tests/unit/classifier/test_engine.py` for `To` propagation and allowlist/blocklist enforcement.
+- Added PRD gap-remediation Task 18.4 implementation updates:
+  - Updated `gmail_sorter/pubsub/listener.py` push-mode endpoint routing to use configured `push_endpoint` path and `push_port` values.
+  - Added explicit `success`/`skip`/`error` outcome logging carrying both Pub/Sub message ID and Gmail message ID.
+  - Preserved ack-after-success semantics while maintaining non-ack behavior on processing failures.
+  - Expanded `tests/unit/pubsub/test_listener.py` with skip-outcome log assertions and push endpoint/port wiring coverage.
+- Added PRD gap-remediation Task 18.5 implementation updates:
+  - Extended `gmail_sorter/llm/response_parser.py` with multi-label parsing support via `categories` payload handling, per-item validation, threshold fallback routing, and normalized multi-category outputs.
+  - Updated `gmail_sorter/classifier/engine.py` to apply all resolved labels in multi-label mode and persist multi-label category/label audit values.
+  - Updated `gmail_sorter/llm/client.py` parser invocation to pass explicit multi-label mode control.
+  - Expanded tests in `tests/unit/llm/test_response_parser.py` and `tests/unit/classifier/test_engine.py` for enabled/disabled multi-label paths and multi-label label-application behavior.
+- Added PRD gap-remediation Task 18.6 implementation updates:
+  - Added retention enforcement utility and date-window/error-aware stats reporting in `gmail_sorter/db/repository.py`.
+  - Updated `gmail_sorter/cli.py` to enforce retention during runtime startup/backfill/stats, add `stats --since/--until` filters, and report explicit retained error totals/rates.
+  - Expanded tests in `tests/unit/db/test_repository.py` and `tests/unit/test_cli.py` for retention pruning, date-window stats behavior, and observability-port runtime wiring.
 
 ### Changed
 
@@ -97,6 +120,10 @@ All notable changes to this project are documented in this file.
 - Updated `PLAN.md` and `README.md` after a fresh PRD-vs-repository verification to record requirement gaps, resume implementation loop, and remove completion-state language.
 - Updated `PLAN.md` execution status to mark Task 18.1 complete and set Task 18.2 as the next implementation task.
 - Updated `README.md` to document Task 18.1 remediation status and new config/runtime-control coverage.
+- Updated `PLAN.md` execution status to mark Tasks 18.2, 18.3, and 18.4 complete and set Task 18.5 as the next implementation task.
+- Updated `README.md` to document remediation status through Task 18.4 and the next task focus.
+- Updated `PLAN.md` execution status to mark Tasks 18.5 and 18.6 complete and set Task 18.7 as the next implementation task.
+- Updated `README.md` to document remediation status through Task 18.6 and the next task focus.
 
 ### Removed
 

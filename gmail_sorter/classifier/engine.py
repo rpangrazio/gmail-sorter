@@ -107,37 +107,39 @@ class ClassificationEngine:
                 valid_categories=[category.name for category in self._config.categories],
                 fallback=self._config.classification.fallback_category,
                 threshold=self._config.classification.confidence_threshold,
+                multi_label=self._config.classification.multi_label,
             )
 
-            label_applied = self._label_map.get(
-                parsed.category,
-                self._label_map.get(self._config.classification.fallback_category, ""),
-            )
+            resolved_categories = self._resolve_categories(parsed)
+            labels_applied = self._resolve_labels(resolved_categories)
+            primary_label = labels_applied[0] if labels_applied else ""
 
             if self._config.processing.dry_run:
                 LOGGER.info(
                     "Dry-run classification: message_id=%s category=%s label=%s confidence=%.3f",
                     email.message_id,
-                    parsed.category,
-                    label_applied,
+                    ",".join(resolved_categories),
+                    ",".join(labels_applied),
                     parsed.confidence,
                 )
                 self._increment_metric("emails_processed_total")
-                self._increment_metric("emails_classified_total", parsed.category)
+                for category in resolved_categories:
+                    self._increment_metric("emails_classified_total", category)
                 return self._result(
                     message_id=email.message_id,
-                    category=parsed.category,
+                    category=resolved_categories[0],
                     confidence=parsed.confidence,
-                    label_applied=label_applied,
+                    label_applied=primary_label,
                     skipped=False,
                     started=started,
                 )
 
-            self._gmail_client.apply_label(
-                email.message_id,
-                label_applied,
-                archive=self._config.processing.archive_after_label,
-            )
+            for index, label_id in enumerate(labels_applied):
+                self._gmail_client.apply_label(
+                    email.message_id,
+                    label_id,
+                    archive=self._config.processing.archive_after_label and index == 0,
+                )
 
             duration_ms = int((time.perf_counter() - started) * 1000)
             self._db.upsert_classification(
@@ -145,23 +147,24 @@ class ClassificationEngine:
                     message_id=email.message_id,
                     gmail_thread_id=email.thread_id,
                     timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    category=parsed.category,
+                    category=",".join(resolved_categories),
                     confidence=parsed.confidence,
                     model_used=self._config.llm.model,
                     prompt_template_hash=self._prompt_builder.template_hash(),
-                    label_applied=label_applied,
+                    label_applied=",".join(labels_applied),
                     processing_duration_ms=duration_ms,
                 )
             )
 
             self._increment_metric("emails_processed_total")
-            self._increment_metric("emails_classified_total", parsed.category)
+            for category in resolved_categories:
+                self._increment_metric("emails_classified_total", category)
 
             return ClassificationResult(
                 message_id=email.message_id,
-                category=parsed.category,
+                category=resolved_categories[0],
                 confidence=parsed.confidence,
-                label_applied=label_applied,
+                label_applied=primary_label,
                 skipped=False,
                 duration_ms=duration_ms,
             )
@@ -193,23 +196,42 @@ class ClassificationEngine:
         return str(llm_output)
 
     def _sender_domain_lists(self) -> tuple[list[str], list[str]]:
-        """Return optional sender-domain allowlist and blocklist values."""
+        """Return sender-domain allowlist and blocklist from typed config."""
 
-        allowlist = self._get_optional_list("allowlist")
-        blocklist = self._get_optional_list("blocklist")
-        return allowlist, blocklist
+        return (
+            [str(item) for item in self._config.classification.allowlist],
+            [str(item) for item in self._config.classification.blocklist],
+        )
 
-    def _get_optional_list(self, attribute: str) -> list[str]:
-        """Read list-like optional config values from known sections."""
+    def _resolve_categories(self, parsed: LlmResponse) -> list[str]:
+        """Resolve classification categories based on single/multi-label mode."""
 
-        for section_name in ("processing", "classification", "gmail", "pubsub"):
-            section = getattr(self._config, section_name, None)
-            if section is None:
-                continue
-            value = getattr(section, attribute, None)
-            if isinstance(value, list):
-                return [str(item) for item in value]
-        return []
+        categories = parsed.categories if self._config.classification.multi_label else [parsed.category]
+        deduplicated: list[str] = []
+        for category in categories:
+            value = str(category).strip()
+            if value and value not in deduplicated:
+                deduplicated.append(value)
+
+        if not deduplicated:
+            deduplicated.append(self._config.classification.fallback_category)
+
+        return deduplicated
+
+    def _resolve_labels(self, categories: list[str]) -> list[str]:
+        """Map categories to configured label IDs with fallback support."""
+
+        fallback_label = self._label_map.get(self._config.classification.fallback_category, "")
+        labels: list[str] = []
+        for category in categories:
+            label = self._label_map.get(category, fallback_label)
+            if label and label not in labels:
+                labels.append(label)
+
+        if not labels and fallback_label:
+            labels.append(fallback_label)
+
+        return labels
 
     def _result(
         self,

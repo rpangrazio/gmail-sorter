@@ -40,6 +40,28 @@ This repository currently contains:
   - Added typed runtime controls in `gmail_sorter/config/models.py` for sender allow/block lists, backfill progress interval, Pub/Sub push endpoint and port, observability ports, DB retention days, and alert webhook URL
   - Updated default `config.yaml` with corresponding runtime-control fields and defaults
   - Expanded config model/loader unit coverage in `tests/unit/config/test_models.py` and `tests/unit/config/test_loader.py` for new defaults and invalid-value validation
+- Implemented PRD gap-remediation Task 18.2 for SEC-001 token-at-rest encryption fallback:
+  - Added encrypted token-file persistence in `gmail_sorter/gmail/auth.py` using deterministic key loading (keyring-backed key first, local `0600` key file fallback)
+  - Preserved keyring token storage behavior and backward-compatible reading of legacy plaintext token files
+  - Added/updated authentication unit tests in `tests/unit/gmail/test_auth.py` for encrypted write path and legacy/encrypted read behavior
+- Implemented PRD gap-remediation Task 18.3 for extraction completeness and sender-policy enforcement:
+  - Added `To` header propagation in processed email headers (`gmail_sorter/processor/email_parser.py`)
+  - Updated sender-domain allow/block enforcement to read exclusively from typed `classification` config fields (`gmail_sorter/classifier/engine.py`)
+  - Expanded unit coverage in `tests/unit/processor/test_email_parser.py` and `tests/unit/classifier/test_engine.py`
+- Implemented PRD gap-remediation Task 18.4 for Pub/Sub configurability and outcome logging semantics:
+  - Updated push-mode endpoint routing to use configured `push_endpoint`/`push_port` values and wired endpoint path handling in `gmail_sorter/pubsub/listener.py`
+  - Added explicit `success`/`skip`/`error` outcome logging with both Pub/Sub and Gmail message IDs
+  - Preserved ack-after-successful-processing behavior; classification failures still avoid acknowledgment
+  - Added listener tests for skip outcome logging and push endpoint/port wiring in `tests/unit/pubsub/test_listener.py`
+- Implemented PRD gap-remediation Task 18.5 for configurable multi-label classification:
+  - Added multi-label parsing support in `gmail_sorter/llm/response_parser.py` with category-list handling, per-item validation, threshold fallback routing, and deduplicated resolved categories
+  - Updated classification orchestration in `gmail_sorter/classifier/engine.py` to apply all resolved labels and persist multi-label audit fields
+  - Updated `gmail_sorter/llm/client.py` integration to pass explicit parser mode controls
+  - Added multi-label unit coverage in `tests/unit/llm/test_response_parser.py` and `tests/unit/classifier/test_engine.py`
+- Implemented PRD gap-remediation Task 18.6 for retention cleanup and richer stats:
+  - Added retention-pruning utilities and date-window/error-aware stats in `gmail_sorter/db/repository.py`
+  - Updated `gmail_sorter/cli.py` stats command with `--since`/`--until`, explicit retained error totals/rates, and retention enforcement before reporting/runtime startup
+  - Added repository and CLI tests in `tests/unit/db/test_repository.py` and `tests/unit/test_cli.py` for retention pruning, date-window stats, and configured observability-port wiring
 - Completed final integration and packaging checks with containerized verification for installability, full test suite execution, configuration validation, Docker build, and prompt rendering
 - Added packaging and test hardening updates:
   - Explicit setuptools package discovery for `gmail_sorter` in `pyproject.toml`
@@ -50,7 +72,7 @@ This repository currently contains:
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-PRD verification was re-run on April 15, 2026 and found unresolved requirement gaps. Implementation is in active remediation mode, tracked in `PLAN.md` Task 18. Task 18.1 is complete and Task 18.2 is next.
+PRD verification was re-run on April 15, 2026 and found unresolved requirement gaps. Implementation is in active remediation mode, tracked in `PLAN.md` Task 18. Tasks 18.1 through 18.6 are complete and Task 18.7 is next.
 
 ## Project Structure
 

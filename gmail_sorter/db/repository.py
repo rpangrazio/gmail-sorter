@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from gmail_sorter.db.schema import SCHEMA_SQL
@@ -154,22 +154,33 @@ class Database:
         )
         return cursor.fetchone() is not None
 
-    def get_stats(self, since: datetime | None = None) -> dict[str, Any]:
+    def get_stats(
+        self,
+        since: datetime | None = None,
+        until: datetime | None = None,
+    ) -> dict[str, Any]:
         """Return aggregate classification statistics.
 
         Args:
             since: Optional UTC timestamp lower bound for filtered stats.
+            until: Optional UTC timestamp upper bound for filtered stats.
         """
 
-        filter_clause = ""
-        params: tuple[Any, ...] = ()
+        conditions: list[str] = []
+        params: list[Any] = []
         if since is not None:
-            filter_clause = "WHERE timestamp >= ?"
-            params = (since.strftime("%Y-%m-%dT%H:%M:%SZ"),)
+            conditions.append("timestamp >= ?")
+            params.append(since.strftime("%Y-%m-%dT%H:%M:%SZ"))
+        if until is not None:
+            conditions.append("timestamp <= ?")
+            params.append(until.strftime("%Y-%m-%dT%H:%M:%SZ"))
+
+        filter_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        params_tuple = tuple(params)
 
         total_cursor = self._connection.execute(
             f"SELECT COUNT(*) AS count FROM classifications {filter_clause}",
-            params,
+            params_tuple,
         )
         total_processed = total_cursor.fetchone()["count"]
 
@@ -181,17 +192,62 @@ class Database:
             GROUP BY category
             ORDER BY count DESC, category ASC
             """,
-            params,
+            params_tuple,
         )
         by_category = {
             row["category"]: row["count"]
             for row in breakdown_cursor.fetchall()
         }
 
+        dlq_conditions: list[str] = []
+        dlq_params: list[Any] = []
+        if since is not None:
+            dlq_conditions.append("last_failed_at >= ?")
+            dlq_params.append(since.strftime("%Y-%m-%dT%H:%M:%SZ"))
+        if until is not None:
+            dlq_conditions.append("last_failed_at <= ?")
+            dlq_params.append(until.strftime("%Y-%m-%dT%H:%M:%SZ"))
+
+        dlq_filter_clause = f"WHERE {' AND '.join(dlq_conditions)}" if dlq_conditions else ""
+
+        error_cursor = self._connection.execute(
+            f"SELECT COUNT(*) AS count FROM dead_letter_queue {dlq_filter_clause}",
+            tuple(dlq_params),
+        )
+        error_total = error_cursor.fetchone()["count"]
+
         return {
             "total_processed": total_processed,
             "by_category": by_category,
+            "error_total": error_total,
             "since": since.strftime("%Y-%m-%dT%H:%M:%SZ") if since else None,
+            "until": until.strftime("%Y-%m-%dT%H:%M:%SZ") if until else None,
+        }
+
+    def enforce_retention(
+        self,
+        retention_days: int,
+        now: datetime | None = None,
+    ) -> dict[str, int]:
+        """Prune classification and DLQ rows older than ``retention_days``."""
+
+        reference = now or datetime.now(timezone.utc)
+        cutoff = (reference - timedelta(days=retention_days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        classifications_cursor = self._connection.execute(
+            "DELETE FROM classifications WHERE timestamp < ?",
+            (cutoff,),
+        )
+        dlq_cursor = self._connection.execute(
+            "DELETE FROM dead_letter_queue WHERE last_failed_at < ?",
+            (cutoff,),
+        )
+        self._connection.commit()
+
+        return {
+            "classifications_deleted": int(classifications_cursor.rowcount),
+            "dlq_deleted": int(dlq_cursor.rowcount),
+            "retention_days": retention_days,
         }
 
     def upsert_backfill_state(self, state: BackfillState) -> None:

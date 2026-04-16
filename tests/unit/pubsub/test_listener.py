@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from types import SimpleNamespace
 
 import pytest
@@ -27,6 +28,7 @@ class _FakeMetrics:
 class _FakeSubscriberClient:
     def __init__(self) -> None:
         self.subscription_path_value = "projects/project/subscriptions/subscription"
+        self.last_subscription_request: dict | None = None
 
     def subscription_path(self, project_id: str, subscription: str) -> str:
         return f"projects/{project_id}/subscriptions/{subscription}"
@@ -36,6 +38,7 @@ class _FakeSubscriberClient:
         return SimpleNamespace(cancel=lambda: None)
 
     def create_subscription(self, request: dict) -> dict:
+        self.last_subscription_request = request
         return request
 
     def close(self) -> None:
@@ -51,6 +54,11 @@ class _FakePublisherClient:
 
     def close(self) -> None:
         return
+
+
+class _FakePushConfig:
+    def __init__(self, push_endpoint: str) -> None:
+        self.push_endpoint = push_endpoint
 
 
 class _FakeGmailClient:
@@ -77,14 +85,33 @@ class _FakeMessage:
         self.acked = True
 
 
-def _listener() -> PubSubListener:
+def _listener(config: PubSubConfig | None = None) -> PubSubListener:
+    config = config or PubSubConfig(
+        project_id="project",
+        topic="topic",
+        subscription="subscription",
+        mode="pull",
+    )
+
+    return PubSubListener(config=config, engine=_FakeEngine(), metrics=_FakeMetrics())
+
+
+@pytest.fixture(autouse=True)
+def _stub_push_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "gmail_sorter.pubsub.listener.pubsub_v1.types.PushConfig",
+        _FakePushConfig,
+    )
+
+
+def _default_listener() -> PubSubListener:
     config = PubSubConfig(
         project_id="project",
         topic="topic",
         subscription="subscription",
         mode="pull",
     )
-    return PubSubListener(config=config, engine=_FakeEngine(), metrics=_FakeMetrics())
+    return _listener(config)
 
 
 @pytest.fixture(autouse=True)
@@ -102,7 +129,7 @@ def _stub_pubsub_clients(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_handle_message_acknowledges_after_success(monkeypatch) -> None:
     """Listener should ack only after classification completes."""
 
-    listener = _listener()
+    listener = _default_listener()
     monkeypatch.setattr(listener, "_get_message_ids_from_history", lambda _history_id: ["gmail-1"])
     monkeypatch.setattr(listener, "_run_classification", lambda _message_id: None)
 
@@ -117,7 +144,7 @@ def test_handle_message_acknowledges_after_success(monkeypatch) -> None:
 def test_handle_message_does_not_ack_when_classification_fails(monkeypatch) -> None:
     """Listener should avoid ack on classification failures to allow redelivery."""
 
-    listener = _listener()
+    listener = _default_listener()
     monkeypatch.setattr(listener, "_get_message_ids_from_history", lambda _history_id: ["gmail-1"])
 
     def _raise(_message_id: str) -> None:
@@ -136,7 +163,7 @@ def test_handle_message_does_not_ack_when_classification_fails(monkeypatch) -> N
 def test_get_message_ids_from_history_collects_all_pages() -> None:
     """History pagination should collect message IDs from each page."""
 
-    listener = _listener()
+    listener = _default_listener()
 
     responses = [
         {
@@ -153,3 +180,56 @@ def test_get_message_ids_from_history_collects_all_pages() -> None:
     listener._engine = SimpleNamespace(_gmail_client=gmail_client)
 
     assert listener._get_message_ids_from_history("100") == ["m1", "m2"]
+
+
+def test_handle_message_logs_skip_outcome(monkeypatch, caplog: pytest.LogCaptureFixture) -> None:
+    """Listener should emit explicit skip outcomes with both message IDs."""
+
+    listener = _default_listener()
+    monkeypatch.setattr(listener, "_get_message_ids_from_history", lambda _history_id: ["gmail-1"])
+    monkeypatch.setattr(
+        listener,
+        "_run_classification",
+        lambda _message_id: SimpleNamespace(skipped=True),
+    )
+
+    payload = json.dumps({"emailAddress": "user@example.com", "historyId": "123"}).encode("utf-8")
+    message = _FakeMessage(payload, message_id="ps-123")
+
+    with caplog.at_level(logging.INFO):
+        listener._handle_message(message)
+
+    assert message.acked is True
+    matching = [
+        record
+        for record in caplog.records
+        if "Pub/Sub message processing outcome" in record.getMessage()
+    ]
+    assert matching
+    context = getattr(matching[-1], "context", {})
+    assert context.get("pubsub_message_id") == "ps-123"
+    assert context.get("gmail_message_id") == "gmail-1"
+    assert context.get("outcome") == "skip"
+
+
+def test_push_mode_wires_configured_endpoint_and_port() -> None:
+    """Push mode should use configured endpoint for subscription and routing."""
+
+    config = PubSubConfig(
+        project_id="project",
+        topic="topic",
+        subscription="subscription",
+        mode="push",
+        push_endpoint="http://localhost:8877/custom-pubsub",
+        push_port=8877,
+    )
+    listener = _listener(config)
+
+    listener._ensure_topic_and_subscription()
+
+    subscription_request = listener._subscriber.last_subscription_request
+    assert subscription_request is not None
+    push_config = subscription_request.get("push_config")
+    assert push_config is not None
+    assert getattr(push_config, "push_endpoint", "") == "http://localhost:8877/custom-pubsub"
+    assert listener._push_path() == "/custom-pubsub"

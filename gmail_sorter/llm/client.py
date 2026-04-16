@@ -83,6 +83,7 @@ class LlmClient:
             valid_categories=[],
             fallback="uncategorized",
             threshold=0.0,
+            multi_label=False,
         )
 
     async def close(self) -> None:

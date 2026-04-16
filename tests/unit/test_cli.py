@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 from types import ModuleType
 from types import SimpleNamespace
 import sys
 
 from click.testing import CliRunner
 
-from gmail_sorter.cli import _build_engine, _load_runtime_config, main
+from gmail_sorter.cli import _build_engine, _load_runtime_config, _run_service, main
 
 
 def _fake_config() -> SimpleNamespace:
@@ -18,6 +19,8 @@ def _fake_config() -> SimpleNamespace:
         gmail=SimpleNamespace(),
         processing=SimpleNamespace(dry_run=False),
         logging=SimpleNamespace(level="INFO", log_prompts=False),
+        database=SimpleNamespace(path="./gmail_sorter.db", retention_days=90),
+        observability=SimpleNamespace(health_port=8080, metrics_port=9090),
     )
 
 
@@ -116,7 +119,7 @@ def test_stats_command_prints_expected_totals(monkeypatch) -> None:
     """`stats` command should print summary totals and category breakdown."""
 
     config = _fake_config()
-    config.database = SimpleNamespace(path="./gmail_sorter.db")
+    config.database = SimpleNamespace(path="./gmail_sorter.db", retention_days=90)
     monkeypatch.setattr("gmail_sorter.cli.load_config", lambda _path: config)
 
     class _FakeDatabase:
@@ -130,11 +133,18 @@ def test_stats_command_prints_expected_totals(monkeypatch) -> None:
             return {
                 "total_processed": 10,
                 "by_category": {"alerts": 7, "marketing": 3},
+                "error_total": 2,
+                "since": None,
+                "until": None,
             }
 
-        def get_dlq_entries(self, limit: int = 100):
-            assert limit >= 10
-            return [SimpleNamespace(id=1), SimpleNamespace(id=2)]
+        def enforce_retention(self, retention_days: int):
+            assert retention_days == 90
+            return {
+                "classifications_deleted": 0,
+                "dlq_deleted": 0,
+                "retention_days": retention_days,
+            }
 
         def close(self) -> None:
             return None
@@ -147,9 +157,69 @@ def test_stats_command_prints_expected_totals(monkeypatch) -> None:
     assert result.exit_code == 0
     assert "Classification Statistics" in result.output
     assert "- Total processed: 10" in result.output
-    assert "- Error rate: 20.00%" in result.output
+    assert "- Total errors: 2" in result.output
+    assert "- Error rate: 16.67%" in result.output
+    assert "- Date range: beginning to now" in result.output
     assert "alerts: 7" in result.output
     assert "marketing: 3" in result.output
+
+
+def test_stats_command_supports_date_range_flags(monkeypatch) -> None:
+    """`stats` command should pass parsed date range values to repository."""
+
+    config = _fake_config()
+    config.database = SimpleNamespace(path="./gmail_sorter.db", retention_days=90)
+    monkeypatch.setattr("gmail_sorter.cli.load_config", lambda _path: config)
+
+    observed = {"since": None, "until": None}
+
+    class _FakeDatabase:
+        def __init__(self, _path: str) -> None:
+            pass
+
+        def initialize(self) -> None:
+            return None
+
+        def enforce_retention(self, retention_days: int):
+            assert retention_days == 90
+            return {
+                "classifications_deleted": 0,
+                "dlq_deleted": 0,
+                "retention_days": retention_days,
+            }
+
+        def get_stats(self, since=None, until=None):
+            observed["since"] = since
+            observed["until"] = until
+            return {
+                "total_processed": 1,
+                "by_category": {"alerts": 1},
+                "error_total": 0,
+                "since": "2026-04-01T00:00:00Z",
+                "until": "2026-04-30T00:00:00Z",
+            }
+
+        def close(self) -> None:
+            return None
+
+    monkeypatch.setattr("gmail_sorter.cli.Database", _FakeDatabase)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        [
+            "stats",
+            "--since",
+            "2026-04-01",
+            "--until",
+            "2026-04-30",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert observed["since"] is not None
+    assert observed["until"] is not None
+    assert "- Date range: 2026-04-01T00:00:00Z to 2026-04-30T00:00:00Z" in result.output
 
 
 def test_build_engine_wires_dependencies(monkeypatch) -> None:
@@ -246,3 +316,96 @@ def test_build_engine_wires_dependencies(monkeypatch) -> None:
     assert isinstance(engine, _ClassificationEngine)
     assert engine.kwargs["db"] is fake_db
     assert engine.kwargs["label_map"] == {"marketing": "LBL-1"}
+
+
+def test_run_service_uses_configured_observability_ports(monkeypatch) -> None:
+    """Service runtime should start metrics/health servers on configured ports."""
+
+    observed = {"metrics_port": None, "health_port": None}
+
+    class _FakeMetrics:
+        def start_http_server(self, port: int = 9090) -> None:
+            observed["metrics_port"] = port
+
+    class _FakeLlmClient:
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(
+        "gmail_sorter.cli._build_engine",
+        lambda config, db: (SimpleNamespace(), SimpleNamespace(), _FakeLlmClient(), _FakeMetrics()),
+    )
+
+    observability_module = ModuleType("gmail_sorter.observability")
+
+    class _HealthServer:
+        def __init__(self, port: int = 8080) -> None:
+            observed["health_port"] = port
+
+        def start(self) -> None:
+            return None
+
+        def stop(self) -> None:
+            return None
+
+        def set_healthy(self, last_message_at: str | None = None) -> None:
+            _ = last_message_at
+
+    observability_module.HealthServer = _HealthServer
+    monkeypatch.setitem(sys.modules, "gmail_sorter.observability", observability_module)
+
+    pubsub_listener_module = ModuleType("gmail_sorter.pubsub.listener")
+
+    class _PubSubListener:
+        def __init__(self, config, engine, metrics) -> None:
+            _ = (config, engine, metrics)
+
+        async def start(self) -> None:
+            return None
+
+        async def stop(self) -> None:
+            return None
+
+    pubsub_listener_module.PubSubListener = _PubSubListener
+    monkeypatch.setitem(sys.modules, "gmail_sorter.pubsub.listener", pubsub_listener_module)
+
+    pubsub_watcher_module = ModuleType("gmail_sorter.pubsub.watcher")
+
+    class _GmailWatcher:
+        def __init__(self, gmail_client, config) -> None:
+            _ = (gmail_client, config)
+
+        def register(self) -> dict:
+            return {}
+
+        def schedule_renewal(self) -> None:
+            return None
+
+        def stop(self) -> None:
+            return None
+
+    pubsub_watcher_module.GmailWatcher = _GmailWatcher
+    monkeypatch.setitem(sys.modules, "gmail_sorter.pubsub.watcher", pubsub_watcher_module)
+
+    backfill_module = ModuleType("gmail_sorter.backfill.engine")
+
+    class _BackfillEngine:
+        def __init__(self, **kwargs) -> None:
+            _ = kwargs
+
+        async def run(self) -> None:
+            return None
+
+    backfill_module.BackfillEngine = _BackfillEngine
+    monkeypatch.setitem(sys.modules, "gmail_sorter.backfill.engine", backfill_module)
+
+    config = SimpleNamespace(
+        database=SimpleNamespace(path=":memory:", retention_days=90),
+        observability=SimpleNamespace(health_port=18080, metrics_port=19090),
+        pubsub=SimpleNamespace(),
+    )
+
+    asyncio.run(_run_service(config, run_backfill=False))
+
+    assert observed["metrics_port"] == 19090
+    assert observed["health_port"] == 18080

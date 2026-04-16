@@ -43,7 +43,27 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - Task 18.1 — Expand configuration schema for missing runtime controls has been executed (`gmail_sorter/config/models.py`, `config.yaml`, `tests/unit/config/test_models.py`, and `tests/unit/config/test_loader.py`).
 - Task 18.1 result: typed runtime controls were added for sender policy lists, backfill progress interval, push endpoint/port, observability ports, DB retention, and webhook URL, with validation constraints and unit coverage updates.
 - Local environment still lacks `pytest` (`pytest: command not found`), so updated tests could not be executed in-session.
-- **Next task to execute:** Task 18.2 — Implement encrypted token-at-rest fallback.
+- Task 18.2 — Implement encrypted token-at-rest fallback has been executed (`gmail_sorter/gmail/auth.py`, `requirements.txt`, and `tests/unit/gmail/test_auth.py`).
+- Task 18.2 result: OAuth token file fallback now encrypts token content at rest with deterministic key loading (keyring-backed key first, then local `0600` key file fallback), while preserving keyring token storage behavior and backward-compatible reading of legacy plaintext token files.
+- PRD-to-plan comparison revalidated after Task 18.2 execution; task ordering and remaining scope are still aligned to PRD requirements.
+- Local environment still lacks `pytest` (`pytest: command not found`), so Task 18.2 unit tests could not be executed in-session.
+- Task 18.3 — Preserve full extraction set and sender-policy behavior has been executed (`gmail_sorter/processor/email_parser.py`, `gmail_sorter/classifier/engine.py`, `tests/unit/processor/test_email_parser.py`, and `tests/unit/classifier/test_engine.py`).
+- Task 18.3 result: processor header normalization now retains `To` for prompt rendering coverage, and sender allowlist/blocklist enforcement now reads exclusively from typed `classification` config fields without heuristic section scanning.
+- PRD-to-plan comparison revalidated after Task 18.3 execution; task ordering and remaining scope are still aligned to PRD requirements.
+- Local environment still lacks `pytest` (`pytest: command not found`), so Task 18.3 unit tests could not be executed in-session.
+- Task 18.4 — Complete Pub/Sub configurability and outcome logging semantics has been executed (`gmail_sorter/pubsub/listener.py` and `tests/unit/pubsub/test_listener.py`).
+- Task 18.4 result: push-mode listener wiring now uses validated `push_port` and `push_endpoint` path handling, and Pub/Sub processing logs now emit explicit `success`/`skip`/`error` outcomes including both Pub/Sub and Gmail message identifiers while preserving ack-after-success semantics.
+- PRD-to-plan comparison revalidated after Task 18.4 execution; task ordering and remaining scope are still aligned to PRD requirements.
+- Local environment still lacks `pytest` (`pytest: command not found`), so Task 18.4 unit tests could not be executed in-session.
+- Task 18.5 — Add multi-label classification mode has been executed (`gmail_sorter/llm/response_parser.py`, `gmail_sorter/llm/client.py`, `gmail_sorter/classifier/engine.py`, `tests/unit/llm/test_response_parser.py`, and `tests/unit/classifier/test_engine.py`).
+- Task 18.5 result: parser and engine now support configurable multi-label handling with validated category lists, fallback routing for invalid/low-confidence entries, multi-label application flow, and persisted audit fields capturing multi-label outcomes.
+- PRD-to-plan comparison revalidated after Task 18.5 execution; task ordering and remaining scope are still aligned to PRD requirements.
+- Local environment still lacks `pytest` (`pytest: command not found`), so Task 18.5 unit tests could not be executed in-session.
+- Task 18.6 — Implement retention cleanup and richer stats reporting has been executed (`gmail_sorter/db/repository.py`, `gmail_sorter/cli.py`, `tests/unit/db/test_repository.py`, and `tests/unit/test_cli.py`).
+- Task 18.6 result: repository now enforces retention windows and exposes date-range/error-aware stats, while CLI stats command now applies retention, supports date-window flags, and reports explicit error totals/rates from retained records.
+- PRD-to-plan comparison revalidated after Task 18.6 execution; task ordering and remaining scope are still aligned to PRD requirements.
+- Local environment still lacks `pytest` (`pytest: command not found`), so Task 18.6 unit tests could not be executed in-session.
+- **Next task to execute:** Task 18.7 — Enforce PRD error taxonomy and critical webhook notifications.
 
 ---
 

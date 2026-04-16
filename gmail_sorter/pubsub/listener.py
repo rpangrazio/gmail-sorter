@@ -9,6 +9,7 @@ import logging
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
+from urllib.parse import urlparse
 
 from google.api_core.exceptions import AlreadyExists
 from google.cloud import pubsub_v1
@@ -80,6 +81,7 @@ class PubSubListener:
 
         pubsub_message_id = str(getattr(message, "message_id", "unknown"))
         self._increment_metric("pubsub_messages_received_total")
+        current_gmail_message_id = "unknown"
 
         try:
             notification = self._decode_notification_payload(message.data)
@@ -87,29 +89,22 @@ class PubSubListener:
             gmail_message_ids = self._get_message_ids_from_history(history_id)
 
             for gmail_message_id in gmail_message_ids:
-                self._run_classification(gmail_message_id)
-                LOGGER.info(
-                    "Pub/Sub message processed successfully",
-                    extra={
-                        "context": {
-                            "pubsub_message_id": pubsub_message_id,
-                            "gmail_message_id": gmail_message_id,
-                            "outcome": "success",
-                        }
-                    },
+                current_gmail_message_id = gmail_message_id
+                result = self._run_classification(gmail_message_id)
+                outcome = "skip" if getattr(result, "skipped", False) else "success"
+                self._log_outcome(
+                    pubsub_message_id=pubsub_message_id,
+                    gmail_message_id=gmail_message_id,
+                    outcome=outcome,
                 )
 
             message.ack()
         except Exception:
-            LOGGER.exception(
-                "Pub/Sub message processing failed",
-                extra={
-                    "context": {
-                        "pubsub_message_id": pubsub_message_id,
-                        "gmail_message_id": "unknown",
-                        "outcome": "error",
-                    }
-                },
+            self._log_outcome(
+                pubsub_message_id=pubsub_message_id,
+                gmail_message_id=current_gmail_message_id,
+                outcome="error",
+                is_error=True,
             )
 
     async def _start_pull_mode(self) -> None:
@@ -135,17 +130,20 @@ class PubSubListener:
 
         class PushHandler(BaseHTTPRequestHandler):
             def do_POST(self) -> None:  # noqa: N802
-                if self.path != "/pubsub":
+                if self.path != listener._push_path():
                     self.send_response(404)
                     self.end_headers()
                     return
 
                 body_length = int(self.headers.get("Content-Length", "0"))
                 raw_payload = self.rfile.read(body_length)
+                push_message_id = "unknown"
+                current_gmail_message_id = "unknown"
 
                 try:
                     payload = json.loads(raw_payload.decode("utf-8"))
                     message = payload.get("message", {})
+                    push_message_id = str(message.get("messageId", "unknown"))
                     encoded_data = str(message.get("data", ""))
                     notification_data = base64.b64decode(encoded_data).decode("utf-8")
                     notification = json.loads(notification_data)
@@ -153,33 +151,43 @@ class PubSubListener:
                     gmail_message_ids = listener._get_message_ids_from_history(history_id)
 
                     for gmail_message_id in gmail_message_ids:
-                        listener._run_classification(gmail_message_id)
-                        LOGGER.info(
-                            "Push message processed successfully",
-                            extra={
-                                "context": {
-                                    "pubsub_message_id": str(message.get("messageId", "unknown")),
-                                    "gmail_message_id": gmail_message_id,
-                                    "outcome": "success",
-                                }
-                            },
+                        current_gmail_message_id = gmail_message_id
+                        result = listener._run_classification(gmail_message_id)
+                        outcome = "skip" if getattr(result, "skipped", False) else "success"
+                        listener._log_outcome(
+                            pubsub_message_id=push_message_id,
+                            gmail_message_id=gmail_message_id,
+                            outcome=outcome,
                         )
 
                     self.send_response(200)
                     self.end_headers()
                 except Exception:
-                    LOGGER.exception("Failed to process push notification")
+                    listener._log_outcome(
+                        pubsub_message_id=push_message_id,
+                        gmail_message_id=current_gmail_message_id,
+                        outcome="error",
+                        is_error=True,
+                    )
                     self.send_response(500)
                     self.end_headers()
 
             def log_message(self, _format: str, *_args: Any) -> None:
                 return
 
-        port = int(getattr(self._config, "push_port", 8081))
+        port = int(self._config.push_port)
         self._http_server = HTTPServer(("0.0.0.0", port), PushHandler)
         self._http_thread = threading.Thread(target=self._http_server.serve_forever, daemon=True)
         self._http_thread.start()
-        LOGGER.info("Pub/Sub push listener started on port %s", port)
+        LOGGER.info(
+            "Pub/Sub push listener started",
+            extra={
+                "context": {
+                    "port": port,
+                    "endpoint": self._push_path(),
+                }
+            },
+        )
 
         while self._running:
             await asyncio.sleep(0.5)
@@ -201,7 +209,7 @@ class PubSubListener:
         }
 
         if self._config.mode == "push":
-            push_endpoint = getattr(self._config, "push_endpoint", None)
+            push_endpoint = self._config.push_endpoint
             if isinstance(push_endpoint, str) and push_endpoint:
                 subscription_request["push_config"] = pubsub_v1.types.PushConfig(
                     push_endpoint=push_endpoint
@@ -212,7 +220,7 @@ class PubSubListener:
         except AlreadyExists:
             pass
 
-    def _run_classification(self, gmail_message_id: str) -> None:
+    def _run_classification(self, gmail_message_id: str) -> Any:
         """Execute async classification from synchronous callback context."""
 
         if self._loop is None:
@@ -222,7 +230,42 @@ class PubSubListener:
             self._engine.classify_message(gmail_message_id),
             self._loop,
         )
-        future.result()
+        return future.result()
+
+    def _push_path(self) -> str:
+        """Resolve configured push endpoint path for local HTTP routing."""
+
+        configured = self._config.push_endpoint
+        if not configured:
+            return "/pubsub"
+
+        parsed = urlparse(configured)
+        if parsed.scheme and parsed.netloc:
+            return parsed.path or "/pubsub"
+
+        return configured if configured.startswith("/") else f"/{configured}"
+
+    def _log_outcome(
+        self,
+        pubsub_message_id: str,
+        gmail_message_id: str,
+        outcome: str,
+        is_error: bool = False,
+    ) -> None:
+        """Emit PRD-required Pub/Sub processing outcome logs."""
+
+        log_extra = {
+            "context": {
+                "pubsub_message_id": pubsub_message_id,
+                "gmail_message_id": gmail_message_id,
+                "outcome": outcome,
+            }
+        }
+        if is_error:
+            LOGGER.exception("Pub/Sub message processing failed", extra=log_extra)
+            return
+
+        LOGGER.info("Pub/Sub message processing outcome", extra=log_extra)
 
     @staticmethod
     def _decode_notification_payload(raw_data: bytes) -> dict[str, Any]:

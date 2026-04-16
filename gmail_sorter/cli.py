@@ -6,7 +6,7 @@ import asyncio
 import contextlib
 import signal
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -128,26 +128,43 @@ def auth(options: RuntimeOptions) -> None:
 
 
 @main.command()
+@click.option(
+    "--since",
+    type=click.DateTime(formats=["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%SZ"]),
+    default=None,
+    help="Include records on/after this UTC timestamp (ISO-8601 or YYYY-MM-DD).",
+)
+@click.option(
+    "--until",
+    type=click.DateTime(formats=["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%SZ"]),
+    default=None,
+    help="Include records on/before this UTC timestamp (ISO-8601 or YYYY-MM-DD).",
+)
 @click.pass_obj
-def stats(options: RuntimeOptions) -> None:
+def stats(options: RuntimeOptions, since: datetime | None, until: datetime | None) -> None:
     """Print classification statistics from the local SQLite database."""
 
     config = _load_runtime_config(options)
     db = Database(config.database.path)
     db.initialize()
     try:
-        all_time_stats = db.get_stats()
-        total_processed = int(all_time_stats.get("total_processed", 0))
-        by_category = dict(all_time_stats.get("by_category", {}))
-        dlq_total = len(db.get_dlq_entries(limit=1_000_000_000))
+        db.enforce_retention(config.database.retention_days)
+        filtered_stats = db.get_stats(since=_as_utc(since), until=_as_utc(until))
+        total_processed = int(filtered_stats.get("total_processed", 0))
+        by_category = dict(filtered_stats.get("by_category", {}))
+        error_total = int(filtered_stats.get("error_total", 0))
+        since_text = filtered_stats.get("since")
+        until_text = filtered_stats.get("until")
     finally:
         db.close()
 
-    error_rate = (dlq_total / total_processed * 100.0) if total_processed else 0.0
-    date_range = "all time"
+    denominator = total_processed + error_total
+    error_rate = (error_total / denominator * 100.0) if denominator else 0.0
+    date_range = f"{since_text or 'beginning'} to {until_text or 'now'}"
 
     click.echo("Classification Statistics")
     click.echo(f"- Total processed: {total_processed}")
+    click.echo(f"- Total errors: {error_total}")
     click.echo(f"- Error rate: {error_rate:.2f}%")
     click.echo(f"- Date range: {date_range}")
 
@@ -169,6 +186,16 @@ def _load_runtime_config(options: RuntimeOptions) -> AppConfig:
     if options.log_level is not None:
         config.logging.level = options.log_level
     return config
+
+
+def _as_utc(value: datetime | None) -> datetime | None:
+    """Normalize an optional datetime to UTC."""
+
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 def _build_engine(config: AppConfig, db: Database) -> tuple[Any, Any, Any, Any]:
@@ -239,8 +266,9 @@ async def _run_service(config: AppConfig, run_backfill: bool) -> None:
 
         engine, gmail_client, llm_client, metrics = _build_engine(config, db)
 
-        metrics.start_http_server()
-        health_server = HealthServer(port=8080)
+        db.enforce_retention(config.database.retention_days)
+        metrics.start_http_server(port=config.observability.metrics_port)
+        health_server = HealthServer(port=config.observability.health_port)
         health_server.start()
         health_server.set_healthy(last_message_at=datetime.utcnow().isoformat() + "Z")
 
@@ -302,6 +330,7 @@ async def _run_backfill_only(config: AppConfig) -> None:
     try:
         from gmail_sorter.backfill.engine import BackfillEngine
 
+        db.enforce_retention(config.database.retention_days)
         engine, gmail_client, llm_client, metrics = _build_engine(config, db)
         backfill_engine = BackfillEngine(
             gmail_client=gmail_client,

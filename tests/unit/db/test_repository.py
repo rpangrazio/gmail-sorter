@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from gmail_sorter.db.repository import (
     BackfillState,
@@ -150,3 +150,89 @@ def test_get_stats_returns_total_and_breakdown() -> None:
     assert stats["total_processed"] == 3
     assert stats["by_category"]["marketing"] == 2
     assert stats["by_category"]["billing"] == 1
+    assert stats["error_total"] == 0
+
+
+def test_get_stats_supports_date_window_and_error_count() -> None:
+    """Stats should filter by date window and include DLQ error totals."""
+
+    db = Database(":memory:")
+    db.initialize()
+
+    old = build_record("old-msg", category="alerts")
+    old.timestamp = "2026-01-01T00:00:00Z"
+    db.upsert_classification(old)
+
+    new_record = build_record("new-msg", category="billing")
+    new_record.timestamp = "2026-04-20T00:00:00Z"
+    db.upsert_classification(new_record)
+
+    db.add_to_dlq(
+        DlqEntry(
+            id=None,
+            message_id="new-msg",
+            error_type="api_error",
+            error_message="failed",
+            attempts=1,
+            first_failed_at="2026-04-20T00:05:00Z",
+            last_failed_at="2026-04-20T00:05:00Z",
+        )
+    )
+
+    stats = db.get_stats(
+        since=datetime(2026, 4, 1, tzinfo=timezone.utc),
+        until=datetime(2026, 4, 30, tzinfo=timezone.utc),
+    )
+
+    assert stats["total_processed"] == 1
+    assert stats["by_category"] == {"billing": 1}
+    assert stats["error_total"] == 1
+
+
+def test_enforce_retention_prunes_old_rows() -> None:
+    """Retention enforcement should remove stale classification and DLQ rows."""
+
+    db = Database(":memory:")
+    db.initialize()
+
+    old_record = build_record("old-msg", category="alerts")
+    old_record.timestamp = "2026-01-01T00:00:00Z"
+    db.upsert_classification(old_record)
+
+    fresh_record = build_record("fresh-msg", category="billing")
+    fresh_record.timestamp = "2026-04-15T00:00:00Z"
+    db.upsert_classification(fresh_record)
+
+    db.add_to_dlq(
+        DlqEntry(
+            id=None,
+            message_id="old-msg",
+            error_type="api_error",
+            error_message="old error",
+            attempts=1,
+            first_failed_at="2026-01-02T00:00:00Z",
+            last_failed_at="2026-01-02T00:00:00Z",
+        )
+    )
+    db.add_to_dlq(
+        DlqEntry(
+            id=None,
+            message_id="fresh-msg",
+            error_type="api_error",
+            error_message="fresh error",
+            attempts=1,
+            first_failed_at="2026-04-15T00:00:00Z",
+            last_failed_at="2026-04-15T00:00:00Z",
+        )
+    )
+
+    result = db.enforce_retention(
+        retention_days=90,
+        now=datetime(2026, 4, 16, tzinfo=timezone.utc),
+    )
+
+    assert result["classifications_deleted"] == 1
+    assert result["dlq_deleted"] == 1
+    assert db.is_classified("old-msg") is False
+    assert db.is_classified("fresh-msg") is True
+    assert len(db.get_dlq_entries(limit=10)) == 1
