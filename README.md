@@ -159,6 +159,48 @@ Print classification statistics from the local database:
 gmail-sorter stats
 ```
 
+## Containerized Setup
+
+### Building the Image
+
+```bash
+docker build -t gmail-sorter .
+```
+
+### Running the Container
+
+```bash
+docker run -d \
+  --name gmail-sorter \
+  -e GITHUB_COPILOT_API_KEY=your_api_key \
+  -v $(pwd)/config.yaml:/app/config.yaml:ro \
+  -v $(pwd)/credentials.json:/app/credentials.json:ro \
+  -v $(pwd)/token.json:/app/token.json \
+  -v $(pwd)/gmail_sorter.db:/app/gmail_sorter.db \
+  gmail-sorter
+```
+
+The image exposes:
+- Port 8080 - Health check endpoint
+- Port 9090 - Prometheus metrics endpoint
+
+### Volumes
+
+- `/app/config.yaml` - Configuration file (mount as read-only)
+- `/app/credentials.json` - OAuth credentials
+- `/app/token.json` - OAuth token (persist to retain authentication)
+- `/app/gmail_sorter.db` - SQLite database
+
+### Dockerfile Entrypoint
+
+The container runs `gmail-sorter run` by default. Override to run other commands:
+
+```bash
+docker run gmail-sorter backfill
+docker run gmail-sorter validate-config
+docker run gmail-sorter stats
+```
+
 ## Roadmap
 
 Plan execution has been reopened for PRD gap remediation. See `PLAN.md` execution status and Task 18 for the active implementation queue.
