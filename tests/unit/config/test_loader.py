@@ -69,6 +69,61 @@ database:
     assert config.alerts.webhook_url is None
 
 
+def test_load_config_accepts_alerts_webhook_url(tmp_path: Path) -> None:
+    """Loader should parse optional alerts webhook URL from config."""
+
+    config_path = tmp_path / "config_with_webhook.yaml"
+    config_path.write_text(
+        """
+gmail:
+  credentials_path: "./credentials.json"
+  token_path: "./token.json"
+  scopes:
+    - "https://www.googleapis.com/auth/gmail.readonly"
+    - "https://www.googleapis.com/auth/gmail.labels"
+    - "https://www.googleapis.com/auth/gmail.modify"
+pubsub:
+  project_id: "project"
+  topic: "topic"
+  subscription: "subscription"
+  mode: "pull"
+llm:
+  provider: "github_copilot"
+  model: "gpt-4o"
+  api_key_env: "GITHUB_COPILOT_API_KEY"
+  timeout_seconds: 30
+  max_retries: 3
+  system_prompt: "system"
+  prompt_template: "./prompts/classify_email.j2"
+classification:
+  confidence_threshold: 0.7
+  fallback_category: "uncategorized"
+  multi_label: false
+categories:
+  - name: "alerts"
+    label: "AutoSort/Alerts"
+    description: "System notifications"
+processing:
+  body_max_length: 4096
+  batch_size: 50
+  backfill_concurrency: 5
+  archive_after_label: false
+  dry_run: false
+logging:
+  level: "INFO"
+  log_prompts: false
+database:
+  path: "./gmail_sorter.db"
+alerts:
+  webhook_url: "https://hooks.example.test/critical"
+""".strip(),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+    assert config.alerts.webhook_url == "https://hooks.example.test/critical"
+
+
 def test_load_config_exits_on_yaml_parse_error(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Loader should exit with parse error details for invalid YAML."""
 

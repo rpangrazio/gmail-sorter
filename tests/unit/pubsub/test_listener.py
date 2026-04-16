@@ -23,6 +23,24 @@ class _FakeMetric:
 class _FakeMetrics:
     def __init__(self) -> None:
         self.pubsub_messages_received_total = _FakeMetric()
+        self.classification_errors_total = _FakeErrorMetric()
+
+
+class _FakeErrorMetric:
+    def __init__(self) -> None:
+        self.by_error_type: dict[str, int] = {}
+
+    def labels(self, error_type: str):
+        return _FakeErrorMetricProxy(self.by_error_type, error_type)
+
+
+class _FakeErrorMetricProxy:
+    def __init__(self, store: dict[str, int], error_type: str) -> None:
+        self._store = store
+        self._error_type = error_type
+
+    def inc(self) -> None:
+        self._store[self._error_type] = self._store.get(self._error_type, 0) + 1
 
 
 class _FakeSubscriberClient:
@@ -158,6 +176,29 @@ def test_handle_message_does_not_ack_when_classification_fails(monkeypatch) -> N
     listener._handle_message(message)
 
     assert message.acked is False
+    assert listener._metrics.classification_errors_total.by_error_type["pubsub_error"] == 1
+
+
+def test_handle_message_logs_pubsub_error_type(monkeypatch, caplog: pytest.LogCaptureFixture) -> None:
+    """Pub/Sub failures should use PRD error taxonomy labels in logs."""
+
+    listener = _default_listener()
+    monkeypatch.setattr(listener, "_get_message_ids_from_history", lambda _history_id: ["gmail-1"])
+
+    def _raise(_message_id: str) -> None:
+        raise RuntimeError("classification failed")
+
+    monkeypatch.setattr(listener, "_run_classification", _raise)
+
+    payload = json.dumps({"emailAddress": "user@example.com", "historyId": "123"}).encode("utf-8")
+    message = _FakeMessage(payload, message_id="ps-9")
+
+    with caplog.at_level(logging.ERROR):
+        listener._handle_message(message)
+
+    matching = [record for record in caplog.records if "Pub/Sub message processing failed" in record.getMessage()]
+    assert matching
+    assert getattr(matching[-1], "error_type", None) == "pubsub_error"
 
 
 def test_get_message_ids_from_history_collects_all_pages() -> None:

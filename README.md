@@ -62,6 +62,12 @@ This repository currently contains:
   - Added retention-pruning utilities and date-window/error-aware stats in `gmail_sorter/db/repository.py`
   - Updated `gmail_sorter/cli.py` stats command with `--since`/`--until`, explicit retained error totals/rates, and retention enforcement before reporting/runtime startup
   - Added repository and CLI tests in `tests/unit/db/test_repository.py` and `tests/unit/test_cli.py` for retention pruning, date-window stats, and configured observability-port wiring
+- Implemented PRD gap-remediation Task 18.7 for error taxonomy and critical webhook notifications:
+  - Added centralized PRD error taxonomy helpers in `gmail_sorter/observability/error_taxonomy.py` for normalization and exception classification
+  - Updated classification failure handling in `gmail_sorter/classifier/engine.py` to emit taxonomy-labeled structured logs, increment taxonomy-aligned error metrics, persist DLQ rows with normalized error types, and dispatch optional critical webhook payloads (`error_type`, `message_id`, `timestamp`, `description`)
+  - Updated Pub/Sub failure handling in `gmail_sorter/pubsub/listener.py` to emit explicit `pubsub_error` logs and increment taxonomy-aligned error metrics
+  - Updated structured logging in `gmail_sorter/observability/logging.py` so `error_type` is always normalized to the required PRD set
+  - Expanded unit coverage in `tests/unit/classifier/test_engine.py`, `tests/unit/pubsub/test_listener.py`, `tests/unit/observability/test_logging.py`, `tests/unit/observability/test_error_taxonomy.py`, and `tests/unit/config/test_loader.py`
 - Completed final integration and packaging checks with containerized verification for installability, full test suite execution, configuration validation, Docker build, and prompt rendering
 - Added packaging and test hardening updates:
   - Explicit setuptools package discovery for `gmail_sorter` in `pyproject.toml`
@@ -72,7 +78,7 @@ This repository currently contains:
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-PRD verification was re-run on April 15, 2026 and found unresolved requirement gaps. Implementation is in active remediation mode, tracked in `PLAN.md` Task 18. Tasks 18.1 through 18.6 are complete and Task 18.7 is next.
+PRD verification was re-run on April 15, 2026 and found unresolved requirement gaps. Implementation is in active remediation mode, tracked in `PLAN.md` Task 18. Tasks 18.1 through 18.7 are complete and Task 18.8 is next.
 
 ## Project Structure
 

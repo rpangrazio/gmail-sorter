@@ -112,6 +112,7 @@ class _FakeDatabase:
     def __init__(self, classified_message_ids: set[str] | None = None) -> None:
         self.classified_message_ids = classified_message_ids or set()
         self.records: list[ClassificationRecord] = []
+        self.dlq_entries: list[object] = []
 
     def is_classified(self, message_id: str) -> bool:
         return message_id in self.classified_message_ids
@@ -119,6 +120,9 @@ class _FakeDatabase:
     def upsert_classification(self, record: ClassificationRecord) -> None:
         self.records.append(record)
         self.classified_message_ids.add(record.message_id)
+
+    def add_to_dlq(self, entry: object) -> None:
+        self.dlq_entries.append(entry)
 
 
 class _Counter:
@@ -133,8 +137,11 @@ class _LabelCounter:
     def __init__(self) -> None:
         self.by_category: dict[str, int] = {}
 
-    def labels(self, category: str) -> "_LabelCounterProxy":
-        return _LabelCounterProxy(self.by_category, category)
+    def labels(self, **kwargs: str) -> "_LabelCounterProxy":
+        label = kwargs.get("category") or kwargs.get("error_type")
+        if label is None:
+            raise ValueError("Expected category or error_type label")
+        return _LabelCounterProxy(self.by_category, str(label))
 
 
 class _LabelCounterProxy:
@@ -150,6 +157,16 @@ class _FakeMetrics:
     def __init__(self) -> None:
         self.emails_processed_total = _Counter()
         self.emails_classified_total = _LabelCounter()
+        self.classification_errors_total = _LabelCounter()
+
+
+class _FailingLlmClient:
+    def __init__(self, exc: Exception) -> None:
+        self._exc = exc
+
+    async def classify(self, system_prompt: str, user_prompt: str) -> _FakeLlmResponse:
+        _ = (system_prompt, user_prompt)
+        raise self._exc
 
 
 def _raw_message(message_id: str = "msg-1", label_ids: list[str] | None = None) -> dict:
@@ -475,3 +492,78 @@ async def test_classify_message_multi_label_applies_all_resolved_labels() -> Non
     assert database.records[0].label_applied == "Label_alerts,Label_billing"
     assert metrics.emails_classified_total.by_category["alerts"] == 1
     assert metrics.emails_classified_total.by_category["billing"] == 1
+
+
+@pytest.mark.asyncio
+async def test_classify_message_sends_critical_webhook_payload(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Critical classification failures should emit PRD-compliant webhook payloads."""
+
+    payloads: list[dict[str, object]] = []
+
+    class _FakeResponse:
+        def raise_for_status(self) -> None:
+            return
+
+    class _FakeAsyncClient:
+        def __init__(self, timeout: float) -> None:
+            _ = timeout
+
+        async def __aenter__(self) -> "_FakeAsyncClient":
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb) -> None:
+            _ = (exc_type, exc, tb)
+
+        async def post(self, url: str, json: dict[str, object]) -> _FakeResponse:
+            payloads.append({"url": url, **json})
+            return _FakeResponse()
+
+    monkeypatch.setattr("gmail_sorter.classifier.engine.httpx.AsyncClient", _FakeAsyncClient)
+
+    config = _config(dry_run=False)
+    config.alerts.webhook_url = "https://hooks.example.test/critical"
+    gmail_client = _FakeGmailClient(_raw_message())
+    llm_client = _FailingLlmClient(TimeoutError("llm timeout"))
+    database = _FakeDatabase()
+    metrics = _FakeMetrics()
+    checker = IdempotencyChecker(database, system_label_ids={"Label_alerts"})
+    builder = PromptBuilder(config.llm, config.categories)
+
+    engine = ClassificationEngine(
+        config=config,
+        gmail_client=gmail_client,
+        llm_client=llm_client,
+        db=database,
+        label_map={"alerts": "Label_alerts", "uncategorized": "Label_uncategorized"},
+        idempotency_checker=checker,
+        prompt_builder=builder,
+        metrics=metrics,
+    )
+
+    with pytest.raises(TimeoutError):
+        await engine.classify_message("msg-1")
+
+    assert len(payloads) == 1
+    assert payloads[0]["url"] == "https://hooks.example.test/critical"
+    assert payloads[0]["error_type"] == "llm_error"
+    assert payloads[0]["message_id"] == "msg-1"
+    assert payloads[0]["description"] == "llm timeout"
+    assert "timestamp" in payloads[0]
+    assert database.dlq_entries
+    assert metrics.classification_errors_total.by_category["llm_error"] == 1
+
+
+def test_error_type_mapping_uses_prd_taxonomy() -> None:
+    """Exception mapping should always resolve to required PRD error types."""
+
+    class OAuthFailure(Exception):
+        pass
+
+    class PubSubDeliveryError(Exception):
+        pass
+
+    assert ClassificationEngine._error_type(OAuthFailure("auth failed")) == "auth_error"
+    assert ClassificationEngine._error_type(PubSubDeliveryError("pubsub failed")) == "pubsub_error"
+    assert ClassificationEngine._error_type(TimeoutError("timed out")) == "llm_error"
+    assert ClassificationEngine._error_type(SystemExit(1)) == "config_error"
+    assert ClassificationEngine._error_type(RuntimeError("unknown")) == "api_error"

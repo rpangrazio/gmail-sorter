@@ -63,7 +63,11 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - Task 18.6 result: repository now enforces retention windows and exposes date-range/error-aware stats, while CLI stats command now applies retention, supports date-window flags, and reports explicit error totals/rates from retained records.
 - PRD-to-plan comparison revalidated after Task 18.6 execution; task ordering and remaining scope are still aligned to PRD requirements.
 - Local environment still lacks `pytest` (`pytest: command not found`), so Task 18.6 unit tests could not be executed in-session.
-- **Next task to execute:** Task 18.7 — Enforce PRD error taxonomy and critical webhook notifications.
+- Task 18.7 — Enforce PRD error taxonomy and critical webhook notifications has been executed (`gmail_sorter/observability/error_taxonomy.py`, `gmail_sorter/classifier/engine.py`, `gmail_sorter/pubsub/listener.py`, `gmail_sorter/observability/logging.py`, `tests/unit/classifier/test_engine.py`, `tests/unit/pubsub/test_listener.py`, `tests/unit/observability/test_logging.py`, `tests/unit/observability/test_error_taxonomy.py`, and `tests/unit/config/test_loader.py`).
+- Task 18.7 result: centralized taxonomy normalization now enforces `{auth_error, api_error, llm_error, config_error, pubsub_error}` across structured logs and error metrics, classifier failures now emit taxonomy-tagged logs and optional critical webhook payloads (`error_type`, `message_id`, `timestamp`, `description`), and Pub/Sub failures now increment taxonomy-aligned error metrics with explicit `pubsub_error` logging.
+- PRD-to-plan comparison revalidated after Task 18.7 execution; task ordering and remaining scope are still aligned to PRD requirements.
+- Local environment still lacks `pytest` (`pytest: command not found`), so Task 18.7 unit tests could not be executed in-session.
+- **Next task to execute:** Task 18.8 — Enforce TLS 1.2+ for outbound HTTP clients.
 
 ---
 

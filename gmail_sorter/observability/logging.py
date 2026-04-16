@@ -7,6 +7,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
+from gmail_sorter.observability.error_taxonomy import normalize_error_type
+
 
 class JsonLogFormatter(logging.Formatter):
     """Serialize log records into structured JSON objects."""
@@ -20,12 +22,9 @@ class JsonLogFormatter(logging.Formatter):
             .replace("+00:00", "Z"),
             "level": record.levelname,
             "message": record.getMessage(),
-            "error_type": getattr(record, "error_type", None),
+            "error_type": normalize_error_type(getattr(record, "error_type", None)),
             "context": self._context_from_record(record),
         }
-
-        if payload["error_type"] is not None:
-            payload["error_type"] = str(payload["error_type"])
 
         if record.exc_info:
             payload["context"].setdefault("exception", self.formatException(record.exc_info))

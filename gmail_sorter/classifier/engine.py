@@ -8,10 +8,13 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
+import httpx
+
 from gmail_sorter.classifier.idempotency import IdempotencyChecker
 from gmail_sorter.config.models import AppConfig
 from gmail_sorter.db.repository import ClassificationRecord, Database, DlqEntry
 from gmail_sorter.llm.response_parser import LlmResponse, parse_response
+from gmail_sorter.observability.error_taxonomy import classify_exception, normalize_error_type
 from gmail_sorter.processor.email_parser import ProcessedEmail, process_message
 from gmail_sorter.processor.prompt_builder import PromptBuilder
 from gmail_sorter.utils.security import is_domain_allowed
@@ -60,44 +63,48 @@ class ClassificationEngine:
         """Classify one Gmail message and apply the mapped label."""
 
         started = time.perf_counter()
-        raw_message = self._gmail_client.get_message(message_id)
-
-        idempotency_email = ProcessedEmail(
-            message_id=str(raw_message.get("id", message_id)),
-            thread_id=str(raw_message.get("threadId", "")),
-            sender="",
-            subject="",
-            date="",
-            body="",
-            headers={},
-            raw_label_ids=[str(label) for label in raw_message.get("labelIds", [])],
-        )
-
-        if self._idempotency_checker.is_processed(idempotency_email):
-            return self._result(
-                message_id=idempotency_email.message_id,
-                category="",
-                confidence=0.0,
-                label_applied="",
-                skipped=True,
-                started=started,
-            )
-
-        email = process_message(raw_message, self._config.processing)
-
-        allowlist, blocklist = self._sender_domain_lists()
-        if not is_domain_allowed(email.sender, allowlist=allowlist, blocklist=blocklist):
-            LOGGER.info("Skipping message due to sender domain policy: %s", email.message_id)
-            return self._result(
-                message_id=email.message_id,
-                category="",
-                confidence=0.0,
-                label_applied="",
-                skipped=True,
-                started=started,
-            )
+        current_message_id = message_id
 
         try:
+            raw_message = self._gmail_client.get_message(message_id)
+
+            idempotency_email = ProcessedEmail(
+                message_id=str(raw_message.get("id", message_id)),
+                thread_id=str(raw_message.get("threadId", "")),
+                sender="",
+                subject="",
+                date="",
+                body="",
+                headers={},
+                raw_label_ids=[str(label) for label in raw_message.get("labelIds", [])],
+            )
+
+            current_message_id = idempotency_email.message_id
+            if self._idempotency_checker.is_processed(idempotency_email):
+                return self._result(
+                    message_id=idempotency_email.message_id,
+                    category="",
+                    confidence=0.0,
+                    label_applied="",
+                    skipped=True,
+                    started=started,
+                )
+
+            email = process_message(raw_message, self._config.processing)
+            current_message_id = email.message_id
+
+            allowlist, blocklist = self._sender_domain_lists()
+            if not is_domain_allowed(email.sender, allowlist=allowlist, blocklist=blocklist):
+                LOGGER.info("Skipping message due to sender domain policy: %s", email.message_id)
+                return self._result(
+                    message_id=email.message_id,
+                    category="",
+                    confidence=0.0,
+                    label_applied="",
+                    skipped=True,
+                    started=started,
+                )
+
             system_prompt, user_prompt = self._prompt_builder.build(email)
             llm_output = await self._llm_client.classify(system_prompt, user_prompt)
 
@@ -170,16 +177,31 @@ class ClassificationEngine:
             )
         except Exception as exc:
             error_type = self._error_type(exc)
+            LOGGER.exception(
+                "Classification pipeline failed",
+                extra={
+                    "error_type": error_type,
+                    "context": {
+                        "message_id": current_message_id,
+                        "operation": "classify_message",
+                    },
+                },
+            )
             self._db.add_to_dlq(
                 DlqEntry(
                     id=None,
-                    message_id=email.message_id,
+                    message_id=current_message_id,
                     error_type=error_type,
                     error_message=str(exc) or exc.__class__.__name__,
                     attempts=1,
                 )
             )
             self._increment_error_metric(error_type)
+            await self._notify_critical_error(
+                error_type=error_type,
+                message_id=current_message_id,
+                description=str(exc) or exc.__class__.__name__,
+            )
             raise
 
     @staticmethod
@@ -279,18 +301,44 @@ class ClassificationEngine:
         metric = getattr(self._metrics, "classification_errors_total", None)
         labels = getattr(metric, "labels", None)
         if callable(labels):
-            labelled_metric = labels(error_type=error_type)
+            labelled_metric = labels(error_type=normalize_error_type(error_type))
             increment = getattr(labelled_metric, "inc", None)
             if callable(increment):
                 increment()
+
+    async def _notify_critical_error(self, error_type: str, message_id: str, description: str) -> None:
+        """Send optional webhook notifications for critical pipeline failures."""
+
+        webhook_url = self._config.alerts.webhook_url
+        if not webhook_url:
+            return
+
+        payload = {
+            "error_type": normalize_error_type(error_type),
+            "message_id": message_id,
+            "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "description": description,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.post(webhook_url, json=payload)
+                response.raise_for_status()
+        except httpx.HTTPError:
+            LOGGER.warning(
+                "Failed to deliver critical-error webhook notification",
+                extra={
+                    "error_type": "api_error",
+                    "context": {
+                        "message_id": message_id,
+                        "operation": "critical_error_webhook",
+                    },
+                },
+                exc_info=True,
+            )
 
     @staticmethod
     def _error_type(exc: Exception) -> str:
         """Map an exception to the PRD-aligned error type taxonomy."""
 
-        name = exc.__class__.__name__.lower()
-        if name in {"llmerror", "llmparseerror", "timeoutexception", "timeouterror"}:
-            return "llm_error"
-        if name in {"systemexit", "validationerror"}:
-            return "config_error"
-        return "api_error"
+        return classify_exception(exc)

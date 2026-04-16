@@ -90,6 +90,12 @@ All notable changes to this project are documented in this file.
   - Added retention enforcement utility and date-window/error-aware stats reporting in `gmail_sorter/db/repository.py`.
   - Updated `gmail_sorter/cli.py` to enforce retention during runtime startup/backfill/stats, add `stats --since/--until` filters, and report explicit retained error totals/rates.
   - Expanded tests in `tests/unit/db/test_repository.py` and `tests/unit/test_cli.py` for retention pruning, date-window stats behavior, and observability-port runtime wiring.
+- Added PRD gap-remediation Task 18.7 implementation updates:
+  - Added `gmail_sorter/observability/error_taxonomy.py` to centralize PRD-compliant error normalization and exception mapping to `{auth_error, api_error, llm_error, config_error, pubsub_error}`.
+  - Updated `gmail_sorter/classifier/engine.py` to emit taxonomy-labeled structured error logs, normalize error metric labels, and send optional critical webhook notifications with payload fields `error_type`, `message_id`, `timestamp`, and `description`.
+  - Updated `gmail_sorter/pubsub/listener.py` to label Pub/Sub failures as `pubsub_error` in logs and increment taxonomy-aligned error metrics.
+  - Updated `gmail_sorter/observability/logging.py` to always normalize `error_type` into the required taxonomy labels.
+  - Expanded tests in `tests/unit/classifier/test_engine.py`, `tests/unit/pubsub/test_listener.py`, `tests/unit/observability/test_logging.py`, `tests/unit/observability/test_error_taxonomy.py`, and `tests/unit/config/test_loader.py` for taxonomy enforcement and critical webhook payload emission.
 
 ### Changed
 
@@ -124,6 +130,8 @@ All notable changes to this project are documented in this file.
 - Updated `README.md` to document remediation status through Task 18.4 and the next task focus.
 - Updated `PLAN.md` execution status to mark Tasks 18.5 and 18.6 complete and set Task 18.7 as the next implementation task.
 - Updated `README.md` to document remediation status through Task 18.6 and the next task focus.
+- Updated `PLAN.md` execution status to mark Task 18.7 complete and set Task 18.8 as the next implementation task.
+- Updated `README.md` to document remediation status through Task 18.7 and the next task focus.
 
 ### Removed
 

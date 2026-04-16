@@ -16,6 +16,7 @@ from google.cloud import pubsub_v1
 
 from gmail_sorter.classifier.engine import ClassificationEngine
 from gmail_sorter.config.models import PubSubConfig
+from gmail_sorter.observability.error_taxonomy import normalize_error_type
 
 LOGGER = logging.getLogger(__name__)
 
@@ -106,6 +107,7 @@ class PubSubListener:
                 outcome="error",
                 is_error=True,
             )
+            self._increment_error_metric("pubsub_error")
 
     async def _start_pull_mode(self) -> None:
         """Run subscriber callback consumption loop in pull mode."""
@@ -169,6 +171,7 @@ class PubSubListener:
                         outcome="error",
                         is_error=True,
                     )
+                    listener._increment_error_metric("pubsub_error")
                     self.send_response(500)
                     self.end_headers()
 
@@ -262,7 +265,13 @@ class PubSubListener:
             }
         }
         if is_error:
-            LOGGER.exception("Pub/Sub message processing failed", extra=log_extra)
+            LOGGER.exception(
+                "Pub/Sub message processing failed",
+                extra={
+                    "error_type": "pubsub_error",
+                    **log_extra,
+                },
+            )
             return
 
         LOGGER.info("Pub/Sub message processing outcome", extra=log_extra)
@@ -330,3 +339,14 @@ class PubSubListener:
         increment = getattr(metric, "inc", None)
         if callable(increment):
             increment()
+
+    def _increment_error_metric(self, error_type: str) -> None:
+        """Increment PRD-taxonomy error counter labels when available."""
+
+        metric = getattr(self._metrics, "classification_errors_total", None)
+        labels = getattr(metric, "labels", None)
+        if callable(labels):
+            labelled_metric = labels(error_type=normalize_error_type(error_type))
+            increment = getattr(labelled_metric, "inc", None)
+            if callable(increment):
+                increment()
