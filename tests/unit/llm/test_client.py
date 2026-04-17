@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import ssl
 
 import httpx
 import pytest
@@ -10,6 +11,7 @@ import respx
 
 from gmail_sorter.config.models import LlmConfig
 from gmail_sorter.llm.client import COPILOT_CHAT_COMPLETIONS_URL, LlmClient, LlmError
+from gmail_sorter.utils.security import ensure_tls12_minimum
 
 
 def _llm_config(max_retries: int = 2) -> LlmConfig:
@@ -220,3 +222,37 @@ def test_extract_response_content_raises_for_non_string_content() -> None:
 
     with pytest.raises(LlmError, match="must be a string"):
         LlmClient._extract_response_content(response)
+
+
+def test_init_configures_http_client_with_tls12_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """LLM client should enforce TLS 1.2+ on outbound HTTP transport."""
+
+    monkeypatch.setenv("GITHUB_COPILOT_API_KEY", "test-key")
+    captured_verify: list[ssl.SSLContext] = []
+
+    class _FakeAsyncClient:
+        def __init__(self, **kwargs: object) -> None:
+            verify = kwargs.get("verify")
+            assert isinstance(verify, ssl.SSLContext)
+            captured_verify.append(verify)
+
+        async def aclose(self) -> None:
+            return
+
+    monkeypatch.setattr("gmail_sorter.llm.client.httpx.AsyncClient", _FakeAsyncClient)
+
+    client = LlmClient(_llm_config(), log_prompts=False)
+    assert captured_verify
+    assert captured_verify[0].minimum_version >= ssl.TLSVersion.TLSv1_2
+
+
+def test_ensure_tls12_minimum_rejects_insecure_context() -> None:
+    """TLS context validation should fail when minimum version is below 1.2."""
+
+    context = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH)
+    context.minimum_version = ssl.TLSVersion.TLSv1
+
+    with pytest.raises(ValueError, match="TLS context must enforce TLS 1.2"):
+        ensure_tls12_minimum(context)

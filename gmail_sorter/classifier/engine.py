@@ -17,6 +17,7 @@ from gmail_sorter.llm.response_parser import LlmResponse, parse_response
 from gmail_sorter.observability.error_taxonomy import classify_exception, normalize_error_type
 from gmail_sorter.processor.email_parser import ProcessedEmail, process_message
 from gmail_sorter.processor.prompt_builder import PromptBuilder
+from gmail_sorter.utils.security import create_tls12_context, ensure_tls12_minimum
 from gmail_sorter.utils.security import is_domain_allowed
 
 LOGGER = logging.getLogger(__name__)
@@ -321,7 +322,8 @@ class ClassificationEngine:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            tls_context = ensure_tls12_minimum(create_tls12_context())
+            async with httpx.AsyncClient(timeout=5.0, verify=tls_context) as client:
                 response = await client.post(webhook_url, json=payload)
                 response.raise_for_status()
         except httpx.HTTPError:

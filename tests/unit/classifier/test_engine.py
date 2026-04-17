@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import ssl
 from dataclasses import dataclass
 
 import pytest
@@ -499,14 +500,17 @@ async def test_classify_message_sends_critical_webhook_payload(monkeypatch: pyte
     """Critical classification failures should emit PRD-compliant webhook payloads."""
 
     payloads: list[dict[str, object]] = []
+    tls_contexts: list[ssl.SSLContext] = []
 
     class _FakeResponse:
         def raise_for_status(self) -> None:
             return
 
     class _FakeAsyncClient:
-        def __init__(self, timeout: float) -> None:
-            _ = timeout
+        def __init__(self, **kwargs: object) -> None:
+            verify = kwargs.get("verify")
+            assert isinstance(verify, ssl.SSLContext)
+            tls_contexts.append(verify)
 
         async def __aenter__(self) -> "_FakeAsyncClient":
             return self
@@ -551,6 +555,8 @@ async def test_classify_message_sends_critical_webhook_payload(monkeypatch: pyte
     assert "timestamp" in payloads[0]
     assert database.dlq_entries
     assert metrics.classification_errors_total.by_category["llm_error"] == 1
+    assert tls_contexts
+    assert tls_contexts[0].minimum_version >= ssl.TLSVersion.TLSv1_2
 
 
 def test_error_type_mapping_uses_prd_taxonomy() -> None:

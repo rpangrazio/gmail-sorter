@@ -14,6 +14,7 @@ import httpx
 
 from gmail_sorter.config.models import LlmConfig
 from gmail_sorter.llm.response_parser import LlmResponse, parse_response
+from gmail_sorter.utils.security import create_tls12_context, ensure_tls12_minimum
 from gmail_sorter.utils.retry import with_retry
 
 LOGGER = logging.getLogger(__name__)
@@ -41,9 +42,11 @@ class LlmClient:
                 f"Required environment variable {config.api_key_env!r} is not set."
             ) from exc
 
+        tls_context = ensure_tls12_minimum(create_tls12_context())
         self._http_client = httpx.AsyncClient(
             http2=True,
             timeout=config.timeout_seconds,
+            verify=tls_context,
         )
 
     async def classify(self, system_prompt: str, user_prompt: str) -> LlmResponse:

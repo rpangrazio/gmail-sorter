@@ -68,6 +68,13 @@ This repository currently contains:
   - Updated Pub/Sub failure handling in `gmail_sorter/pubsub/listener.py` to emit explicit `pubsub_error` logs and increment taxonomy-aligned error metrics
   - Updated structured logging in `gmail_sorter/observability/logging.py` so `error_type` is always normalized to the required PRD set
   - Expanded unit coverage in `tests/unit/classifier/test_engine.py`, `tests/unit/pubsub/test_listener.py`, `tests/unit/observability/test_logging.py`, `tests/unit/observability/test_error_taxonomy.py`, and `tests/unit/config/test_loader.py`
+- Implemented PRD gap-remediation Task 18.8 for SEC-005 TLS minimum enforcement:
+  - Added reusable TLS security helpers in `gmail_sorter/utils/security.py` to build and validate SSL contexts enforcing TLS 1.2+
+  - Updated outbound raw HTTP clients in `gmail_sorter/llm/client.py` and `gmail_sorter/classifier/engine.py` to use explicit TLS 1.2+ contexts
+  - Expanded unit coverage in `tests/unit/llm/test_client.py` and `tests/unit/classifier/test_engine.py` to assert TLS-minimum client wiring and insecure-context rejection
+- Confirmed PRD gap-remediation Task 18.9 runtime port configurability is implemented in CLI wiring:
+  - `gmail_sorter/cli.py` starts health and metrics servers from `config.observability.health_port` and `config.observability.metrics_port`
+  - `tests/unit/test_cli.py` verifies configured observability port usage in runtime wiring
 - Completed final integration and packaging checks with containerized verification for installability, full test suite execution, configuration validation, Docker build, and prompt rendering
 - Added packaging and test hardening updates:
   - Explicit setuptools package discovery for `gmail_sorter` in `pyproject.toml`
@@ -78,7 +85,7 @@ This repository currently contains:
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-PRD verification was re-run on April 15, 2026 and found unresolved requirement gaps. Implementation is in active remediation mode, tracked in `PLAN.md` Task 18. Tasks 18.1 through 18.7 are complete and Task 18.8 is next.
+PRD verification follow-up was completed on April 17, 2026. Task 18 remediation is complete (including TLS 1.2+ enforcement and observability-port configurability), and `.DONE` has been restored to mark plan completion pending future change requests.
 
 ## Project Structure
 
@@ -231,4 +238,4 @@ docker run gmail-sorter stats
 
 ## Roadmap
 
-Plan execution has been reopened for PRD gap remediation. See `PLAN.md` execution status and Task 18 for the active implementation queue.
+Plan execution is currently complete. See `PLAN.md` execution status for the latest verification notes and completion state.
