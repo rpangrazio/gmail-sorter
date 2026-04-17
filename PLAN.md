@@ -79,6 +79,10 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - Verification found additional unmet or partial requirements not captured in prior remediation closure: FR-004, FR-015, FR-074, FR-075, NFR-001, NFR-003, SEC-003, SEC-005, ERR-002, ERR-003, ERR-004, and PRD 14.2/14.3 operational requirements.
 - Plan reopened with Task 19 — Secondary PRD Gap Remediation.
 - Completion sentinel `.DONE` removed so implementation loop resumes.
+- Task 19.1 — Explicit Pub/Sub service-account credential support has been executed (`gmail_sorter/config/models.py`, `gmail_sorter/pubsub/listener.py`, `config.yaml`, `tests/unit/config/test_models.py`, `tests/unit/config/test_loader.py`, and `tests/unit/pubsub/test_listener.py`).
+- Task 19.1 result: typed Pub/Sub auth-mode and credential-path controls were added and validated; Pub/Sub listener now loads explicit service-account credentials when configured and fails fast with descriptive startup errors for missing/invalid credential files.
+- PRD-to-plan comparison revalidated after Task 19.1 execution; task ordering and remaining scope are still aligned to PRD requirements.
+- Local environment still lacks a Python runtime (`python: command not found`, `python3: command not found`), so Task 19.1 unit tests could not be executed in-session.
 
 ---
 

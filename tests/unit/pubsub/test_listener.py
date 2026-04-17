@@ -44,7 +44,8 @@ class _FakeErrorMetricProxy:
 
 
 class _FakeSubscriberClient:
-    def __init__(self) -> None:
+    def __init__(self, credentials=None) -> None:
+        self.credentials = credentials
         self.subscription_path_value = "projects/project/subscriptions/subscription"
         self.last_subscription_request: dict | None = None
 
@@ -64,6 +65,9 @@ class _FakeSubscriberClient:
 
 
 class _FakePublisherClient:
+    def __init__(self, credentials=None) -> None:
+        self.credentials = credentials
+
     def topic_path(self, project_id: str, topic: str) -> str:
         return f"projects/{project_id}/topics/{topic}"
 
@@ -274,3 +278,55 @@ def test_push_mode_wires_configured_endpoint_and_port() -> None:
     assert push_config is not None
     assert getattr(push_config, "push_endpoint", "") == "http://localhost:8877/custom-pubsub"
     assert listener._push_path() == "/custom-pubsub"
+
+
+def test_listener_uses_default_pubsub_credentials_when_not_configured() -> None:
+    """Default auth mode should construct clients without explicit credentials."""
+
+    listener = _default_listener()
+    assert listener._credentials is None
+    assert listener._subscriber.credentials is None
+    assert listener._publisher.credentials is None
+
+
+def test_listener_loads_service_account_credentials(monkeypatch) -> None:
+    """Service-account mode should load explicit credentials for Pub/Sub clients."""
+
+    loaded = object()
+    monkeypatch.setattr("gmail_sorter.pubsub.listener.Path.exists", lambda _self: True)
+    monkeypatch.setattr(
+        "gmail_sorter.pubsub.listener.service_account.Credentials.from_service_account_file",
+        lambda _path: loaded,
+    )
+
+    config = PubSubConfig(
+        project_id="project",
+        topic="topic",
+        subscription="subscription",
+        mode="pull",
+        auth_mode="service_account",
+        credentials_path="/tmp/service-account.json",
+    )
+    listener = _listener(config)
+
+    assert listener._credentials is loaded
+    assert listener._subscriber.credentials is loaded
+    assert listener._publisher.credentials is loaded
+
+
+def test_listener_service_account_missing_file_raises_value_error(monkeypatch) -> None:
+    """Service-account mode should fail fast when credentials file is missing."""
+
+    monkeypatch.setattr("gmail_sorter.pubsub.listener.Path.exists", lambda _self: False)
+
+    config = PubSubConfig(
+        project_id="project",
+        topic="topic",
+        subscription="subscription",
+        mode="pull",
+        auth_mode="service_account",
+        credentials_path="/tmp/missing-service-account.json",
+    )
+
+    with pytest.raises(ValueError, match="credentials file not found"):
+        _listener(config)

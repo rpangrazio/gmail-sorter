@@ -76,6 +76,12 @@ This repository currently contains:
 - Implemented PRD gap-remediation Task 18.9 for observability endpoint configurability:
   - Confirmed service runtime wiring starts Health and Prometheus servers using `config.observability.health_port` and `config.observability.metrics_port` in `gmail_sorter/cli.py`
   - Added/maintained CLI runtime wiring coverage in `tests/unit/test_cli.py` for configured observability port usage during service startup
+- Implemented secondary PRD gap-remediation Task 19.1 for explicit Pub/Sub service-account support:
+  - Added typed Pub/Sub auth configuration in `gmail_sorter/config/models.py` (`auth_mode`, `credentials_path`) with validation enforcing required credential path in service-account mode
+  - Updated default `config.yaml` with service-account auth controls and documentation comments
+  - Updated `gmail_sorter/pubsub/listener.py` to initialize publisher/subscriber clients with explicit service-account credentials when configured
+  - Added startup-time validation failures for missing/invalid service-account credentials with descriptive error messages
+  - Expanded unit coverage in `tests/unit/config/test_models.py`, `tests/unit/config/test_loader.py`, and `tests/unit/pubsub/test_listener.py` for service-account config parsing and listener credential wiring/failure behavior
 - Completed final integration and packaging checks with containerized verification for installability, full test suite execution, configuration validation, Docker build, and prompt rendering
 - Added packaging and test hardening updates:
   - Explicit setuptools package discovery for `gmail_sorter` in `pyproject.toml`
@@ -86,7 +92,7 @@ This repository currently contains:
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-PRD verification was re-run on April 17, 2026 after Task 18.9 validation. A subsequent code-first verification pass identified additional PRD compliance gaps (FR-004, FR-015, FR-074, FR-075, NFR-001, NFR-003, SEC-003, SEC-005, ERR-002, ERR-003, ERR-004, and PRD 14.2/14.3 operational requirements). The remediation queue has been reopened under `PLAN.md` Task 19, and `.DONE` has been removed until follow-up verification confirms full closure.
+PRD verification was re-run on April 17, 2026 after Task 18.9 validation. A subsequent code-first verification pass identified additional PRD compliance gaps (FR-004, FR-015, FR-074, FR-075, NFR-001, NFR-003, SEC-003, SEC-005, ERR-002, ERR-003, ERR-004, and PRD 14.2/14.3 operational requirements). Task 19 remediation is in progress; Task 19.1 is complete and Task 19.2 is the next planned implementation step. `.DONE` remains absent until follow-up verification confirms full closure.
 
 ## Project Structure
 
@@ -239,4 +245,4 @@ docker run gmail-sorter stats
 
 ## Roadmap
 
-Plan execution is active again under Task 19 secondary PRD remediation. See `PLAN.md` for the current verification record and remaining implementation scope.
+Plan execution is active under Task 19 secondary PRD remediation. Task 19.1 is complete; Task 19.2 (rate-limit retry observability) is next. See `PLAN.md` for the current verification record and remaining implementation scope.

@@ -63,10 +63,68 @@ database:
     assert config.categories[0].name == "alerts"
     assert config.processing.backfill_progress_interval == 100
     assert config.pubsub.push_port == 8081
+    assert config.pubsub.auth_mode == "default"
+    assert config.pubsub.credentials_path is None
     assert config.database.retention_days == 90
     assert config.observability.health_port == 8080
     assert config.observability.metrics_port == 9090
     assert config.alerts.webhook_url is None
+
+
+def test_load_config_accepts_pubsub_service_account_fields(tmp_path: Path) -> None:
+    """Loader should parse explicit service-account auth settings."""
+
+    config_path = tmp_path / "config_service_account.yaml"
+    config_path.write_text(
+        """
+gmail:
+  credentials_path: "./credentials.json"
+  token_path: "./token.json"
+  scopes:
+    - "https://www.googleapis.com/auth/gmail.readonly"
+    - "https://www.googleapis.com/auth/gmail.labels"
+    - "https://www.googleapis.com/auth/gmail.modify"
+pubsub:
+  project_id: "project"
+  topic: "topic"
+  subscription: "subscription"
+  mode: "pull"
+  auth_mode: "service_account"
+  credentials_path: "./service-account.json"
+llm:
+  provider: "github_copilot"
+  model: "gpt-4o"
+  api_key_env: "GITHUB_COPILOT_API_KEY"
+  timeout_seconds: 30
+  max_retries: 3
+  system_prompt: "system"
+  prompt_template: "./prompts/classify_email.j2"
+classification:
+  confidence_threshold: 0.7
+  fallback_category: "uncategorized"
+  multi_label: false
+categories:
+  - name: "alerts"
+    label: "AutoSort/Alerts"
+    description: "System notifications"
+processing:
+  body_max_length: 4096
+  batch_size: 50
+  backfill_concurrency: 5
+  archive_after_label: false
+  dry_run: false
+logging:
+  level: "INFO"
+  log_prompts: false
+database:
+  path: "./gmail_sorter.db"
+""".strip(),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+    assert config.pubsub.auth_mode == "service_account"
+    assert config.pubsub.credentials_path == "./service-account.json"
 
 
 def test_load_config_accepts_alerts_webhook_url(tmp_path: Path) -> None:
@@ -200,6 +258,10 @@ database:
         ("database:\n  retention_days: 0", "database.retention_days"),
         ("pubsub:\n  push_port: 70000", "pubsub.push_port"),
         ("observability:\n  health_port: 0", "observability.health_port"),
+        (
+            "pubsub:\n  auth_mode: \"service_account\"",
+            "pubsub",
+        ),
     ],
 )
 def test_load_config_exits_on_invalid_new_runtime_controls(

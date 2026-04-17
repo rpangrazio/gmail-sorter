@@ -8,10 +8,13 @@ import json
 import logging
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
 from google.api_core.exceptions import AlreadyExists
+from google.auth import credentials as google_auth_credentials
+from google.oauth2 import service_account
 from google.cloud import pubsub_v1
 
 from gmail_sorter.classifier.engine import ClassificationEngine
@@ -35,8 +38,9 @@ class PubSubListener:
         self._config = config
         self._engine = engine
         self._metrics = metrics
-        self._subscriber = pubsub_v1.SubscriberClient()
-        self._publisher = pubsub_v1.PublisherClient()
+        self._credentials = self._resolve_pubsub_credentials(config)
+        self._subscriber = pubsub_v1.SubscriberClient(credentials=self._credentials)
+        self._publisher = pubsub_v1.PublisherClient(credentials=self._credentials)
         self._streaming_future: Any | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._http_server: HTTPServer | None = None
@@ -350,3 +354,31 @@ class PubSubListener:
             increment = getattr(labelled_metric, "inc", None)
             if callable(increment):
                 increment()
+
+    @staticmethod
+    def _resolve_pubsub_credentials(
+        config: PubSubConfig,
+    ) -> google_auth_credentials.Credentials | None:
+        """Return explicit Pub/Sub credentials when configured."""
+
+        if config.auth_mode != "service_account":
+            return None
+
+        credentials_path = config.credentials_path
+        if not credentials_path:
+            raise ValueError(
+                "pubsub.credentials_path is required when pubsub.auth_mode is 'service_account'"
+            )
+
+        path = Path(credentials_path)
+        if not path.exists():
+            raise ValueError(
+                f"Pub/Sub service-account credentials file not found: {credentials_path}"
+            )
+
+        try:
+            return service_account.Credentials.from_service_account_file(str(path))
+        except Exception as exc:
+            raise ValueError(
+                f"Invalid Pub/Sub service-account credentials at {credentials_path}: {exc}"
+            ) from exc

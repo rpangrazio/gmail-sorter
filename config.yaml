@@ -40,6 +40,13 @@ pubsub:
   # Subscription mode: "push" (HTTP endpoint) or "pull" (long-polling).
   mode: "pull"  # Options: push | pull
 
+  # Pub/Sub auth mode. Use service_account to load explicit JSON credentials.
+  auth_mode: "default"  # Options: default | service_account
+
+  # Optional path to a Pub/Sub service-account credentials JSON file.
+  # Required when auth_mode is set to service_account.
+  credentials_path: null
+
   # Push-mode HTTP path and bind port for receiving Pub/Sub callbacks.
   push_endpoint: "/pubsub"
   push_port: 8081

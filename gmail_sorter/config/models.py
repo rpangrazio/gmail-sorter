@@ -26,8 +26,20 @@ class PubSubConfig(BaseModel):
     topic: str
     subscription: str
     mode: Literal["push", "pull"]
+    auth_mode: Literal["default", "service_account"] = "default"
+    credentials_path: str | None = None
     push_endpoint: str | None = None
     push_port: int = Field(default=8081, ge=1, le=65535)
+
+    @model_validator(mode="after")
+    def validate_auth_mode(self) -> PubSubConfig:
+        """Validate service-account auth settings when explicitly enabled."""
+
+        if self.auth_mode == "service_account" and not self.credentials_path:
+            raise ValueError(
+                "pubsub.credentials_path is required when pubsub.auth_mode is 'service_account'"
+            )
+        return self
 
 
 class LlmConfig(BaseModel):

@@ -106,6 +106,12 @@ All notable changes to this project are documented in this file.
 - Reintroduced completion sentinel `.DONE` after follow-up PRD verification confirmed no remaining remediation tasks.
 - Added secondary PRD verification findings showing remaining implementation gaps after the prior closure check (FR-004, FR-015, FR-074, FR-075, NFR-001, NFR-003, SEC-003, SEC-005, ERR-002, ERR-003, ERR-004, and PRD 14.2/14.3 operational requirements).
 - Added Task 19 in `PLAN.md` to track secondary PRD gap remediation and verification closure criteria.
+- Added Task 19.1 implementation for explicit Pub/Sub service-account credential support (FR-004):
+  - Extended `PubSubConfig` in `gmail_sorter/config/models.py` with validated `auth_mode` and `credentials_path` fields for explicit service-account configuration.
+  - Updated default `config.yaml` with Pub/Sub auth-mode controls and credential path documentation.
+  - Updated `gmail_sorter/pubsub/listener.py` to load service-account credentials when configured and pass them explicitly to `PublisherClient`/`SubscriberClient`.
+  - Added fail-fast startup validation/error paths for missing or invalid Pub/Sub credential files in service-account mode.
+  - Expanded unit coverage in `tests/unit/config/test_models.py`, `tests/unit/config/test_loader.py`, and `tests/unit/pubsub/test_listener.py` for service-account config validation, loader parsing, and listener credential wiring/failure behavior.
 
 ### Changed
 
@@ -147,6 +153,7 @@ All notable changes to this project are documented in this file.
 - Updated `PLAN.md` execution status to mark Task 18.9 complete, record follow-up PRD verification closure, and note completion sentinel restoration.
 - Updated `README.md` to document final PRD remediation completion status and `.DONE` restoration.
 - Updated `PLAN.md` and `README.md` after a fresh code-first PRD verification pass to reopen remediation work under Task 19 and record newly identified requirement gaps.
+- Updated `PLAN.md` and `README.md` to record Task 19.1 completion, current verification status, and the next remediation target (Task 19.2).
 
 ### Removed
 

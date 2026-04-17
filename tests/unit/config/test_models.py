@@ -78,6 +78,8 @@ def test_valid_config_loads_without_error(valid_config_dict: dict) -> None:
     assert config.processing.backfill_progress_interval == 100
     assert config.pubsub.push_endpoint is None
     assert config.pubsub.push_port == 8081
+    assert config.pubsub.auth_mode == "default"
+    assert config.pubsub.credentials_path is None
     assert config.database.retention_days == 90
     assert config.observability.health_port == 8080
     assert config.observability.metrics_port == 9090
@@ -169,4 +171,16 @@ def test_negative_retention_days_raises_validation_error(
     payload["database"]["retention_days"] = -1
 
     with pytest.raises(ValidationError):
+        AppConfig.model_validate(payload)
+
+
+def test_service_account_auth_without_credentials_path_raises_validation_error(
+    valid_config_dict: dict,
+) -> None:
+    """Service-account mode requires an explicit credentials path."""
+
+    payload = copy.deepcopy(valid_config_dict)
+    payload["pubsub"]["auth_mode"] = "service_account"
+
+    with pytest.raises(ValidationError, match="pubsub.credentials_path is required"):
         AppConfig.model_validate(payload)
