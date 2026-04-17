@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import ssl
 
 import httpx
 import pytest
@@ -102,6 +103,17 @@ def test_init_raises_system_exit_when_api_key_missing(
 
     with pytest.raises(SystemExit):
         LlmClient(_llm_config(), log_prompts=False)
+
+
+def test_init_rejects_tls_context_below_tls12(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Client should reject insecure outbound TLS context configuration."""
+
+    monkeypatch.setenv("GITHUB_COPILOT_API_KEY", "test-key")
+    context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+    context.minimum_version = ssl.TLSVersion.TLSv1
+
+    with pytest.raises(ValueError, match="TLS context must enforce"):
+        LlmClient(_llm_config(), log_prompts=False, tls_context=context)
 
 
 @pytest.mark.asyncio

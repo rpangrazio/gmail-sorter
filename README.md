@@ -68,6 +68,11 @@ This repository currently contains:
   - Updated Pub/Sub failure handling in `gmail_sorter/pubsub/listener.py` to emit explicit `pubsub_error` logs and increment taxonomy-aligned error metrics
   - Updated structured logging in `gmail_sorter/observability/logging.py` so `error_type` is always normalized to the required PRD set
   - Expanded unit coverage in `tests/unit/classifier/test_engine.py`, `tests/unit/pubsub/test_listener.py`, `tests/unit/observability/test_logging.py`, `tests/unit/observability/test_error_taxonomy.py`, and `tests/unit/config/test_loader.py`
+- Implemented PRD gap-remediation Task 18.8 for TLS enforcement (SEC-005):
+  - Added shared TLS enforcement helper in `gmail_sorter/utils/tls.py` that validates outbound SSL contexts enforce TLS 1.2 or higher
+  - Updated `gmail_sorter/llm/client.py` to construct `httpx.AsyncClient` with an explicit TLS 1.2+ verified SSL context
+  - Updated webhook notification dispatch in `gmail_sorter/classifier/engine.py` to use an explicit TLS 1.2+ verified SSL context
+  - Added unit coverage in `tests/unit/utils/test_tls.py`, `tests/unit/llm/test_client.py`, and `tests/unit/classifier/test_engine.py` for insecure-context rejection and TLS-enforced webhook/client wiring
 - Completed final integration and packaging checks with containerized verification for installability, full test suite execution, configuration validation, Docker build, and prompt rendering
 - Added packaging and test hardening updates:
   - Explicit setuptools package discovery for `gmail_sorter` in `pyproject.toml`
@@ -78,7 +83,7 @@ This repository currently contains:
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-PRD verification was re-run on April 15, 2026 and found unresolved requirement gaps. Implementation is in active remediation mode, tracked in `PLAN.md` Task 18. Tasks 18.1 through 18.7 are complete and Task 18.8 is next.
+PRD verification remediation in `PLAN.md` Task 18 is complete. Tasks 18.1 through 18.8 are implemented and Task 18.9 runtime wiring was already present; `.DONE` has been reintroduced to mark completion pending any new requirements.
 
 ## Project Structure
 
@@ -231,4 +236,4 @@ docker run gmail-sorter stats
 
 ## Roadmap
 
-Plan execution has been reopened for PRD gap remediation. See `PLAN.md` execution status and Task 18 for the active implementation queue.
+Current implementation plan is complete. See `PLAN.md` execution status for the latest verification notes.

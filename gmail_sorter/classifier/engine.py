@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import ssl
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -18,6 +19,7 @@ from gmail_sorter.observability.error_taxonomy import classify_exception, normal
 from gmail_sorter.processor.email_parser import ProcessedEmail, process_message
 from gmail_sorter.processor.prompt_builder import PromptBuilder
 from gmail_sorter.utils.security import is_domain_allowed
+from gmail_sorter.utils.tls import ensure_tls12_context
 
 LOGGER = logging.getLogger(__name__)
 
@@ -321,7 +323,8 @@ class ClassificationEngine:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            tls_context = ensure_tls12_context(ssl.create_default_context(ssl.Purpose.SERVER_AUTH))
+            async with httpx.AsyncClient(timeout=5.0, verify=tls_context) as client:
                 response = await client.post(webhook_url, json=payload)
                 response.raise_for_status()
         except httpx.HTTPError:

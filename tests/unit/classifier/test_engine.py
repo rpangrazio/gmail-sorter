@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import ssl
 from dataclasses import dataclass
 
 import pytest
@@ -551,6 +552,62 @@ async def test_classify_message_sends_critical_webhook_payload(monkeypatch: pyte
     assert "timestamp" in payloads[0]
     assert database.dlq_entries
     assert metrics.classification_errors_total.by_category["llm_error"] == 1
+
+
+@pytest.mark.asyncio
+async def test_critical_webhook_uses_tls12_enforced_context(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Webhook dispatch should pass a TLS1.2+-enforced context to httpx."""
+
+    verify_contexts: list[object] = []
+
+    class _FakeResponse:
+        def raise_for_status(self) -> None:
+            return
+
+    class _FakeAsyncClient:
+        def __init__(self, timeout: float, verify: object) -> None:
+            _ = timeout
+            verify_contexts.append(verify)
+
+        async def __aenter__(self) -> "_FakeAsyncClient":
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb) -> None:
+            _ = (exc_type, exc, tb)
+
+        async def post(self, url: str, json: dict[str, object]) -> _FakeResponse:
+            _ = (url, json)
+            return _FakeResponse()
+
+    monkeypatch.setattr("gmail_sorter.classifier.engine.httpx.AsyncClient", _FakeAsyncClient)
+
+    config = _config(dry_run=False)
+    config.alerts.webhook_url = "https://hooks.example.test/critical"
+    gmail_client = _FakeGmailClient(_raw_message())
+    llm_client = _FailingLlmClient(TimeoutError("llm timeout"))
+    database = _FakeDatabase()
+    metrics = _FakeMetrics()
+    checker = IdempotencyChecker(database, system_label_ids={"Label_alerts"})
+    builder = PromptBuilder(config.llm, config.categories)
+
+    engine = ClassificationEngine(
+        config=config,
+        gmail_client=gmail_client,
+        llm_client=llm_client,
+        db=database,
+        label_map={"alerts": "Label_alerts", "uncategorized": "Label_uncategorized"},
+        idempotency_checker=checker,
+        prompt_builder=builder,
+        metrics=metrics,
+    )
+
+    with pytest.raises(TimeoutError):
+        await engine.classify_message("msg-1")
+
+    assert len(verify_contexts) == 1
+    verify_context = verify_contexts[0]
+    assert isinstance(verify_context, ssl.SSLContext)
+    assert verify_context.minimum_version >= ssl.TLSVersion.TLSv1_2
 
 
 def test_error_type_mapping_uses_prd_taxonomy() -> None:

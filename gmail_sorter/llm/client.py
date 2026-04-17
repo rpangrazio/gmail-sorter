@@ -8,12 +8,14 @@ from __future__ import annotations
 
 import logging
 import os
+import ssl
 from typing import Any
 
 import httpx
 
 from gmail_sorter.config.models import LlmConfig
 from gmail_sorter.llm.response_parser import LlmResponse, parse_response
+from gmail_sorter.utils.tls import ensure_tls12_context
 from gmail_sorter.utils.retry import with_retry
 
 LOGGER = logging.getLogger(__name__)
@@ -28,7 +30,12 @@ class LlmError(RuntimeError):
 class LlmClient:
     """Async client for GitHub Copilot chat completions."""
 
-    def __init__(self, config: LlmConfig, log_prompts: bool = False) -> None:
+    def __init__(
+        self,
+        config: LlmConfig,
+        log_prompts: bool = False,
+        tls_context: ssl.SSLContext | None = None,
+    ) -> None:
         """Initialize HTTP client and resolve API key from environment."""
 
         self._config = config
@@ -41,9 +48,12 @@ class LlmClient:
                 f"Required environment variable {config.api_key_env!r} is not set."
             ) from exc
 
+        self._tls_context = ensure_tls12_context(tls_context)
+
         self._http_client = httpx.AsyncClient(
             http2=True,
             timeout=config.timeout_seconds,
+            verify=self._tls_context,
         )
 
     async def classify(self, system_prompt: str, user_prompt: str) -> LlmResponse:

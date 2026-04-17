@@ -67,7 +67,13 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - Task 18.7 result: centralized taxonomy normalization now enforces `{auth_error, api_error, llm_error, config_error, pubsub_error}` across structured logs and error metrics, classifier failures now emit taxonomy-tagged logs and optional critical webhook payloads (`error_type`, `message_id`, `timestamp`, `description`), and Pub/Sub failures now increment taxonomy-aligned error metrics with explicit `pubsub_error` logging.
 - PRD-to-plan comparison revalidated after Task 18.7 execution; task ordering and remaining scope are still aligned to PRD requirements.
 - Local environment still lacks `pytest` (`pytest: command not found`), so Task 18.7 unit tests could not be executed in-session.
-- **Next task to execute:** Task 18.8 — Enforce TLS 1.2+ for outbound HTTP clients.
+- Task 18.8 — Enforce TLS 1.2+ for outbound HTTP clients has been executed (`gmail_sorter/utils/tls.py`, `gmail_sorter/llm/client.py`, `gmail_sorter/classifier/engine.py`, `tests/unit/utils/test_tls.py`, `tests/unit/llm/test_client.py`, and `tests/unit/classifier/test_engine.py`).
+- Task 18.8 result: outbound raw HTTP clients now enforce TLS >= 1.2 by validating an explicit SSL context before client construction, and insecure contexts are rejected via unit coverage in both LLM and webhook-notification paths.
+- PRD-to-plan comparison revalidated after Task 18.8 execution; task ordering and remaining scope are still aligned to PRD requirements.
+- Repository-to-plan comparison confirms Task 18.9 wiring is already implemented (`gmail_sorter/cli.py` observability port usage and `tests/unit/test_cli.py` configured-port wiring assertions).
+- Follow-up PRD verification confirms all previously identified remediation gaps are now addressed; `.DONE` completion sentinel has been reintroduced.
+- Local environment still lacks `pytest` (`pytest: command not found`), so Task 18.8 unit tests could not be executed in-session.
+- **Next task to execute:** None. Task 18 remediation queue is complete.
 
 ---
 

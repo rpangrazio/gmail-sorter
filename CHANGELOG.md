@@ -96,6 +96,12 @@ All notable changes to this project are documented in this file.
   - Updated `gmail_sorter/pubsub/listener.py` to label Pub/Sub failures as `pubsub_error` in logs and increment taxonomy-aligned error metrics.
   - Updated `gmail_sorter/observability/logging.py` to always normalize `error_type` into the required taxonomy labels.
   - Expanded tests in `tests/unit/classifier/test_engine.py`, `tests/unit/pubsub/test_listener.py`, `tests/unit/observability/test_logging.py`, `tests/unit/observability/test_error_taxonomy.py`, and `tests/unit/config/test_loader.py` for taxonomy enforcement and critical webhook payload emission.
+- Added PRD gap-remediation Task 18.8 implementation updates:
+  - Added `gmail_sorter/utils/tls.py` with `ensure_tls12_context` to enforce TLS 1.2+ on outbound HTTP SSL contexts.
+  - Updated `gmail_sorter/llm/client.py` to require a TLS 1.2+ context and pass it into `httpx.AsyncClient(verify=...)`.
+  - Updated critical webhook dispatch in `gmail_sorter/classifier/engine.py` to use a TLS 1.2+ verified SSL context for outbound HTTP calls.
+  - Added unit tests in `tests/unit/utils/test_tls.py`, `tests/unit/llm/test_client.py`, and `tests/unit/classifier/test_engine.py` covering insecure-context rejection and TLS-enforced webhook/client wiring.
+- Added `.DONE` completion sentinel after finishing Task 18 remediation queue.
 
 ### Changed
 
@@ -132,6 +138,8 @@ All notable changes to this project are documented in this file.
 - Updated `README.md` to document remediation status through Task 18.6 and the next task focus.
 - Updated `PLAN.md` execution status to mark Task 18.7 complete and set Task 18.8 as the next implementation task.
 - Updated `README.md` to document remediation status through Task 18.7 and the next task focus.
+- Updated `PLAN.md` execution status to mark Task 18.8 complete, record that Task 18.9 port wiring was already implemented, and close the remediation queue.
+- Updated `README.md` to document Task 18 completion and return project state to completed-plan status.
 
 ### Removed
 
