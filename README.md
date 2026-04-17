@@ -123,6 +123,18 @@ This repository currently contains:
   - Updated `gmail_sorter/cli.py` to resolve the default config path from `GMAIL_SORTER_CONFIG` when the global `--config` flag is not provided
   - Preserved explicit CLI `--config` precedence over environment defaults to maintain deterministic operator overrides
   - Expanded CLI unit coverage in `tests/unit/test_cli.py` for environment-driven default path resolution and CLI-over-environment precedence behavior
+- Implemented tertiary PRD gap-remediation Task 20.1 for SEC-003 MIME sanitization hardening:
+  - Updated `gmail_sorter/utils/mime.py` to ignore attachment MIME parts (filename/disposition based) when selecting text body content for prompt construction
+  - Applied linked-image/tracking URL stripping uniformly to plain-text and HTML fallback body extraction paths
+  - Expanded MIME and processor tests in `tests/unit/utils/test_mime.py` and `tests/unit/processor/test_email_parser.py` for attachment exclusion and plain-text tracking artifact stripping
+- Implemented tertiary PRD gap-remediation Task 20.2 for FR-075 processed/total progress accounting:
+  - Updated `gmail_sorter/gmail/client.py` list pagination to propagate Gmail `resultSizeEstimate` totals alongside messages and page token
+  - Updated `gmail_sorter/backfill/engine.py` progress logs to emit `processed/total` when estimates are available and preserve explicit estimate-source context when unavailable
+  - Expanded tests in `tests/unit/gmail/test_client.py`, `tests/unit/backfill/test_engine.py`, `tests/e2e/test_backfill.py`, and `tests/load/test_backfill_throughput.py` for total-estimate propagation and progress log behavior
+- Implemented tertiary PRD gap-remediation Task 20.3 for SEC-005 TLS enforcement boundary clarity:
+  - Updated `gmail_sorter/gmail/client.py` transport validation docs/errors to explicitly describe default Google HTTPS/TLS behavior and fail-fast expectations for insecure custom endpoints
+  - Updated `gmail_sorter/pubsub/listener.py` transport validation docs/errors with actionable guidance to use default Google endpoints or HTTPS endpoints enforcing TLS 1.2+
+  - Preserved existing insecure endpoint rejection behavior covered by Pub/Sub/Gmail transport-policy unit tests
 - Completed final integration and packaging checks with containerized verification for installability, full test suite execution, configuration validation, Docker build, and prompt rendering
 - Added packaging and test hardening updates:
   - Explicit setuptools package discovery for `gmail_sorter` in `pyproject.toml`
@@ -133,7 +145,7 @@ This repository currently contains:
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-PRD verification was re-run on April 17, 2026 after Task 18.9 validation. A subsequent code-first verification pass identified additional PRD compliance gaps (FR-004, FR-015, FR-074, FR-075, NFR-001, NFR-003, SEC-003, SEC-005, ERR-002, ERR-003, ERR-004, and PRD 14.2/14.3 operational requirements). Task 19 remediation is now complete: Tasks 19.1 through 19.11 were executed. A fresh post-closure verification sweep identified remaining implementation gaps in SEC-003, FR-075, and SEC-005; remediation has been reopened under Task 20 and `.DONE` has been removed until this final gap set is closed.
+PRD verification was re-run on April 17, 2026 after Task 18.9 validation. A subsequent code-first verification pass identified additional PRD compliance gaps (FR-004, FR-015, FR-074, FR-075, NFR-001, NFR-003, SEC-003, SEC-005, ERR-002, ERR-003, ERR-004, and PRD 14.2/14.3 operational requirements). Task 19 remediation is complete (Tasks 19.1 through 19.11). Task 20 tertiary remediation and closure verification (Tasks 20.1–20.4) are now complete; no additional PRD implementation tasks are currently tracked, and `.DONE` has been restored.
 
 ## Project Structure
 
@@ -286,4 +298,4 @@ docker run gmail-sorter stats
 
 ## Roadmap
 
-Plan execution is complete through Task 19 secondary PRD remediation and has now been reopened for Task 20 tertiary PRD gap remediation. See `PLAN.md` for the current verification record and active implementation tasks.
+Plan execution is complete through Task 20 tertiary PRD remediation and closure verification. See `PLAN.md` for the current verification record.

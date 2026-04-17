@@ -115,3 +115,44 @@ def test_extract_body_html_fallback_strips_tracking_pixel_urls() -> None:
     body = EmailParser.extract_body(payload)
     assert "for your account" in body
     assert "pixel/open" not in body
+
+
+def test_extract_body_plain_text_strips_tracking_and_image_urls() -> None:
+    """Plain-text extraction should remove linked image/tracking URLs."""
+
+    payload = {
+        "mimeType": "text/plain",
+        "body": {
+            "data": _b64(
+                "Receipt: https://example.com/banner.jpg "
+                "track: https://email.example.com/open/pixel?id=123 "
+                "keep-this-text"
+            )
+        },
+    }
+
+    body = EmailParser.extract_body(payload)
+    assert "banner.jpg" not in body
+    assert "open/pixel" not in body
+    assert "keep-this-text" in body
+
+
+def test_extract_body_ignores_attachment_parts() -> None:
+    """Attachment MIME parts should not be selected as message body."""
+
+    payload = {
+        "mimeType": "multipart/mixed",
+        "parts": [
+            {
+                "mimeType": "text/plain",
+                "filename": "receipt.txt",
+                "body": {"data": _b64("attachment content")},
+            },
+            {
+                "mimeType": "text/plain",
+                "body": {"data": _b64("actual body")},
+            },
+        ],
+    }
+
+    assert EmailParser.extract_body(payload) == "actual body"

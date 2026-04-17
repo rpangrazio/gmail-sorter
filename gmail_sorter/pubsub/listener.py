@@ -359,7 +359,12 @@ class PubSubListener:
 
     @staticmethod
     def _validate_secure_transport(client: Any, client_name: str) -> None:
-        """Fail fast when Pub/Sub client endpoint indicates insecure transport."""
+        """Fail fast when Pub/Sub endpoint configuration is not TLS-safe.
+
+        Default Google Pub/Sub endpoints use TLS with modern protocol versions.
+        This startup guard only validates explicitly exposed endpoint values and
+        rejects cleartext or port-80 style settings that would violate SEC-005.
+        """
 
         endpoint_candidates: list[str] = []
 
@@ -378,12 +383,14 @@ class PubSubListener:
             if lowered.startswith("http://"):
                 raise ValueError(
                     f"Insecure {client_name} transport detected: {endpoint!r}. "
-                    "TLS 1.2+ is required."
+                    "Use the default Google endpoint or an HTTPS endpoint that "
+                    "enforces TLS 1.2+."
                 )
             if ":80" in lowered and ":443" not in lowered:
                 raise ValueError(
                     f"Insecure {client_name} transport detected: {endpoint!r}. "
-                    "TLS 1.2+ is required."
+                    "Use the default Google endpoint or an HTTPS endpoint that "
+                    "enforces TLS 1.2+."
                 )
 
     @staticmethod

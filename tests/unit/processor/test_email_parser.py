@@ -123,3 +123,59 @@ def test_process_message_extracts_selected_headers() -> None:
     assert processed.headers["reply_to"] == "reply@example.com"
     assert processed.headers["list_unsubscribe"] == "true"
     assert processed.headers["to"] == "recipient@example.com"
+
+
+def test_process_message_ignores_attachment_text_parts() -> None:
+    """Attachment text parts should not be used as prompt body content."""
+
+    raw_message = {
+        "id": "msg-5",
+        "threadId": "thread-5",
+        "payload": {
+            "headers": [
+                {"name": "From", "value": "sender@example.com"},
+                {"name": "Subject", "value": "Attachment filtering"},
+                {"name": "Date", "value": "Thu, 04 Jan 2026 00:00:00 +0000"},
+            ],
+            "mimeType": "multipart/mixed",
+            "parts": [
+                {
+                    "mimeType": "text/plain",
+                    "filename": "invoice.txt",
+                    "body": {"data": _b64("attachment content")},
+                },
+                {
+                    "mimeType": "text/plain",
+                    "body": {"data": _b64("actual message body")},
+                },
+            ],
+        },
+    }
+
+    processed = process_message(raw_message, _processing_config())
+    assert processed.body == "actual message body"
+
+
+def test_process_message_strips_tracking_urls_from_plain_text_body() -> None:
+    """Plain-text message bodies should strip linked-image/tracking URLs."""
+
+    raw_message = {
+        "id": "msg-6",
+        "threadId": "thread-6",
+        "payload": {
+            "headers": [],
+            "mimeType": "text/plain",
+            "body": {
+                "data": _b64(
+                    "banner https://cdn.example.com/img.png "
+                    "tracker https://mail.example.com/open/pixel?id=1 "
+                    "hello"
+                )
+            },
+        },
+    }
+
+    processed = process_message(raw_message, _processing_config())
+    assert "img.png" not in processed.body
+    assert "open/pixel" not in processed.body
+    assert "hello" in processed.body

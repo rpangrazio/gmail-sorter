@@ -76,10 +76,13 @@ def _config(database_path: Path) -> AppConfig:
     )
 
 
-def _pages(total: int = 250, page_size: int = 50) -> dict[str | None, tuple[list[dict[str, str]], str | None]]:
+def _pages(
+    total: int = 250,
+    page_size: int = 50,
+) -> dict[str | None, tuple[list[dict[str, str]], str | None, int | None]]:
     """Generate deterministic paginated Gmail list response fixtures."""
 
-    result: dict[str | None, tuple[list[dict[str, str]], str | None]] = {}
+    result: dict[str | None, tuple[list[dict[str, str]], str | None, int | None]] = {}
     page_count = total // page_size
     for index in range(page_count):
         start = (index * page_size) + 1
@@ -87,14 +90,17 @@ def _pages(total: int = 250, page_size: int = 50) -> dict[str | None, tuple[list
         messages = [{"id": f"m{message_id}"} for message_id in range(start, end)]
         token = None if index == 0 else f"p{index}"
         next_token = None if index + 1 == page_count else f"p{index + 1}"
-        result[token] = (messages, next_token)
+        result[token] = (messages, next_token, total)
     return result
 
 
 class _FakeGmailClient:
     """Gmail client stub exposing paginated mailbox listings."""
 
-    def __init__(self, pages: dict[str | None, tuple[list[dict[str, str]], str | None]]) -> None:
+    def __init__(
+        self,
+        pages: dict[str | None, tuple[list[dict[str, str]], str | None, int | None]],
+    ) -> None:
         self._pages = pages
         self.calls: list[str | None] = []
 
@@ -102,10 +108,10 @@ class _FakeGmailClient:
         self,
         page_token: str | None = None,
         batch_size: int = 50,
-    ) -> tuple[list[dict[str, str]], str | None]:
+    ) -> tuple[list[dict[str, str]], str | None, int | None]:
         _ = batch_size
         self.calls.append(page_token)
-        return self._pages.get(page_token, ([], None))
+        return self._pages.get(page_token, ([], None, None))
 
 
 @dataclass(slots=True)
@@ -237,8 +243,8 @@ def test_backfill_resume_skips_already_processed_ids_on_resume_page(
     config = _config(tmp_path / "e2e-backfill-resume-last-message.db")
     config.processing.batch_size = 4
     pages = {
-        None: ([{"id": "m1"}, {"id": "m2"}, {"id": "m3"}, {"id": "m4"}], "p2"),
-        "p2": ([{"id": "m3"}, {"id": "m4"}, {"id": "m5"}, {"id": "m6"}], None),
+        None: ([{"id": "m1"}, {"id": "m2"}, {"id": "m3"}, {"id": "m4"}], "p2", 6),
+        "p2": ([{"id": "m3"}, {"id": "m4"}, {"id": "m5"}, {"id": "m6"}], None, 6),
     }
 
     db = Database(config.database.path)

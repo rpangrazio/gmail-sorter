@@ -27,7 +27,13 @@ class GmailClient:
         self._dry_run = dry_run
 
     def _validate_secure_transport(self) -> None:
-        """Enforce TLS transport policy for Gmail API HTTP communications."""
+        """Enforce SEC-005 transport policy for Gmail API communications.
+
+        Gmail API traffic is expected to use Google-managed HTTPS endpoints,
+        which negotiate modern TLS versions (TLS 1.2+). When a custom base URL
+        is present on the underlying client, this check rejects non-HTTPS
+        endpoints early with an actionable configuration error.
+        """
 
         base_url = str(getattr(self._service, "_baseUrl", ""))
         if not base_url:
@@ -37,7 +43,8 @@ class GmailClient:
         if parsed.scheme and parsed.scheme.lower() != "https":
             raise ValueError(
                 "Insecure Gmail API transport detected: expected https endpoint "
-                f"but got {base_url!r}."
+                f"but got {base_url!r}. Use the default Gmail API endpoint or "
+                "configure an HTTPS URL that enforces TLS 1.2+."
             )
 
     @staticmethod
@@ -104,8 +111,8 @@ class GmailClient:
         self,
         page_token: str | None = None,
         batch_size: int = 50,
-    ) -> tuple[list[dict[str, Any]], str | None]:
-        """List mailbox messages and return the next pagination token."""
+    ) -> tuple[list[dict[str, Any]], str | None, int | None]:
+        """List mailbox messages and return pagination token and total estimate."""
 
         request = (
             self._service.users()
@@ -113,7 +120,10 @@ class GmailClient:
             .list(userId="me", pageToken=page_token, maxResults=batch_size)
         )
         response = self._execute_with_rate_limit_warning("list_messages", request.execute)
-        return response.get("messages", []), response.get("nextPageToken")
+        total_estimate = response.get("resultSizeEstimate")
+        if isinstance(total_estimate, bool) or not isinstance(total_estimate, int):
+            total_estimate = None
+        return response.get("messages", []), response.get("nextPageToken"), total_estimate
 
     @with_retry(max_retries=3)
     def list_labels(self) -> list[dict[str, Any]]:

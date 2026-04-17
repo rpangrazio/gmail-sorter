@@ -40,7 +40,7 @@ class EmailParser:
             else:
                 text = EmailParser.html_to_text(EmailParser._decode_part_data(html_part))
 
-        return text[:max_length]
+        return EmailParser.strip_unsafe_content(text)[:max_length]
 
     @staticmethod
     def extract_headers(payload: dict[str, Any]) -> dict[str, str]:
@@ -88,9 +88,9 @@ class EmailParser:
 
     @staticmethod
     def strip_unsafe_content(text: str) -> str:
-        """Remove base64 data URIs from text content."""
+        """Remove unsafe prompt content such as embedded media and trackers."""
 
-        return _DATA_URI_PATTERN.sub("", text)
+        return EmailParser._strip_tracking_urls(_DATA_URI_PATTERN.sub("", text))
 
     @staticmethod
     def _strip_tracking_urls(text: str) -> str:
@@ -103,7 +103,7 @@ class EmailParser:
     def _find_part(payload: dict[str, Any], mime_type: str) -> dict[str, Any] | None:
         """Recursively find the first MIME part matching ``mime_type``."""
 
-        if payload.get("mimeType") == mime_type:
+        if payload.get("mimeType") == mime_type and not EmailParser._is_attachment_part(payload):
             return payload
 
         for part in payload.get("parts", []):
@@ -111,6 +111,25 @@ class EmailParser:
             if found is not None:
                 return found
         return None
+
+    @staticmethod
+    def _is_attachment_part(part: dict[str, Any]) -> bool:
+        """Return ``True`` when a MIME part represents an attachment."""
+
+        filename = str(part.get("filename", "")).strip()
+        if filename:
+            return True
+
+        for header in part.get("headers", []):
+            name = str(header.get("name", "")).lower()
+            if name != "content-disposition":
+                continue
+
+            value = str(header.get("value", "")).lower()
+            if "attachment" in value:
+                return True
+
+        return False
 
     @staticmethod
     def _decode_part_data(part: dict[str, Any]) -> str:

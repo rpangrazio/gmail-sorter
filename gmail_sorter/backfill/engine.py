@@ -44,7 +44,7 @@ class BackfillEngine:
 
         try:
             while True:
-                messages, next_page_token = self._gmail_client.list_messages(
+                messages, next_page_token, total_estimate = self._gmail_client.list_messages(
                     page_token=page_token,
                     batch_size=self._config.batch_size,
                 )
@@ -69,6 +69,7 @@ class BackfillEngine:
                     page_token=page_token,
                     progress_interval=progress_interval,
                     next_progress_log=next_progress_log,
+                    total_estimate=total_estimate,
                 )
 
                 next_progress_log = ((state.total_processed // progress_interval) + 1) * progress_interval
@@ -113,6 +114,7 @@ class BackfillEngine:
             page_token=None,
             progress_interval=max(1, self._config.backfill_progress_interval),
             next_progress_log=max(1, self._config.backfill_progress_interval),
+            total_estimate=None,
         )
         return state.total_processed, state.total_skipped
 
@@ -123,6 +125,7 @@ class BackfillEngine:
         page_token: str | None,
         progress_interval: int,
         next_progress_log: int,
+        total_estimate: int | None,
     ) -> None:
         """Process one page of message IDs with bounded concurrency and durable progress."""
 
@@ -160,17 +163,24 @@ class BackfillEngine:
                 self._db.upsert_backfill_state(state)
 
                 while state.total_processed >= next_progress_log:
+                    if total_estimate is not None:
+                        estimated_total: int | str = total_estimate
+                        estimate_source = "gmail_api_result_size_estimate"
+                    else:
+                        estimated_total = "unknown"
+                        estimate_source = "gmail_api_result_size_unavailable"
+
                     LOGGER.info(
                         "Backfill progress: %s/%s (estimate_source=%s)",
                         state.total_processed,
-                        "unknown",
-                        "gmail_api_result_size_unavailable",
+                        estimated_total,
+                        estimate_source,
                         extra={
                             "context": {
                                 "operation": "backfill_run",
                                 "processed": state.total_processed,
-                                "estimated_total": "unknown",
-                                "estimate_source": "gmail_api_result_size_unavailable",
+                                "estimated_total": estimated_total,
+                                "estimate_source": estimate_source,
                                 "last_message_id": committed_message_id,
                             }
                         },

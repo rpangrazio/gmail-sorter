@@ -100,3 +100,25 @@ def test_client_rejects_non_https_transport(monkeypatch) -> None:
 
     with pytest.raises(ValueError, match="Insecure Gmail API transport"):
         GmailClient(credentials=Mock())
+
+
+def test_list_messages_returns_total_estimate(monkeypatch) -> None:
+    """Mailbox list response should propagate Gmail result size estimate."""
+
+    service, users = _build_service()
+
+    execute = users.messages.return_value.list.return_value.execute
+    execute.return_value = {
+        "messages": [{"id": "m1"}],
+        "nextPageToken": "p2",
+        "resultSizeEstimate": 123,
+    }
+
+    monkeypatch.setattr("gmail_sorter.gmail.client.build", lambda *_args, **_kwargs: service)
+
+    client = GmailClient(credentials=Mock())
+    messages, token, estimate = client.list_messages(page_token=None, batch_size=50)
+
+    assert messages == [{"id": "m1"}]
+    assert token == "p2"
+    assert estimate == 123

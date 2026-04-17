@@ -158,6 +158,18 @@ All notable changes to this project are documented in this file.
   - Restored the `.DONE` completion sentinel to mark the repository as currently complete against tracked PRD remediation scope.
 - Added post-Task-19 verification findings indicating remaining PRD compliance gaps in SEC-003, FR-075, and SEC-005.
 - Added Task 20 in `PLAN.md` to track tertiary PRD gap remediation and verification closure criteria.
+- Added Task 20.1 implementation updates for SEC-003 MIME sanitization hardening:
+  - Updated `gmail_sorter/utils/mime.py` to skip attachment MIME parts (filename or attachment content-disposition) when selecting message body text.
+  - Updated body sanitization flow to apply linked-image/tracking URL stripping to plain-text extraction output as well as HTML fallback output.
+  - Expanded tests in `tests/unit/utils/test_mime.py` and `tests/unit/processor/test_email_parser.py` for attachment exclusion and plain-text tracking URL stripping.
+- Added Task 20.2 implementation updates for FR-075 processed/total progress accounting:
+  - Updated `gmail_sorter/gmail/client.py` `list_messages` to propagate `resultSizeEstimate` with message page responses.
+  - Updated `gmail_sorter/backfill/engine.py` to emit backfill progress logs in `processed/total` format when totals are available and preserve explicit estimate-source context when unavailable.
+  - Expanded tests in `tests/unit/gmail/test_client.py`, `tests/unit/backfill/test_engine.py`, `tests/e2e/test_backfill.py`, and `tests/load/test_backfill_throughput.py` for estimate propagation and progress logging behavior.
+- Added Task 20.3 implementation updates for SEC-005 Google transport TLS enforcement boundary clarity:
+  - Updated `gmail_sorter/gmail/client.py` transport validation docstring/error messaging to explicitly document Google-managed HTTPS/TLS expectations and provide actionable guidance for insecure custom endpoint configurations.
+  - Updated `gmail_sorter/pubsub/listener.py` transport validation docstring/error messaging with explicit SEC-005 enforcement boundaries and actionable endpoint remediation guidance.
+  - Preserved existing insecure endpoint validation behavior exercised by `tests/unit/gmail/test_client.py` and `tests/unit/pubsub/test_listener.py`.
 
 ### Changed
 
@@ -211,6 +223,8 @@ All notable changes to this project are documented in this file.
 - Updated `PLAN.md` and `README.md` to record Task 19.10 completion, current verification status, and the next remediation target (Task 19.11).
 - Updated `PLAN.md` and `README.md` to record Task 19.11 completion, PRD verification closure, and current no-remaining-task status.
 - Updated `PLAN.md` and `README.md` after a fresh verification sweep to reopen implementation for remaining SEC-003, FR-075, and SEC-005 gaps under Task 20.
+- Updated `PLAN.md` and `README.md` to record Task 20.1 and Task 20.2 completion status and identify Task 20.3 as the next remediation step.
+- Updated `PLAN.md` and `README.md` to record Task 20.3 completion status and identify Task 20.4 verification closure as the remaining plan step.
 
 ### Removed
 

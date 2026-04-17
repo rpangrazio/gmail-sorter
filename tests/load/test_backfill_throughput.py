@@ -22,7 +22,7 @@ class _FakeGmailClient:
     """Provide deterministic paginated message IDs for backfill."""
 
     def __init__(self, total_messages: int, page_size: int = 100) -> None:
-        self._pages: dict[str | None, tuple[list[dict[str, str]], str | None]] = {}
+        self._pages: dict[str | None, tuple[list[dict[str, str]], str | None, int | None]] = {}
         generated = 0
         page_index = 0
         token: str | None = None
@@ -35,7 +35,7 @@ class _FakeGmailClient:
             ]
             generated += current_page_size
             next_token = None if generated >= total_messages else f"p{page_index + 1}"
-            self._pages[token] = (messages, next_token)
+            self._pages[token] = (messages, next_token, total_messages)
             token = next_token
             page_index += 1
 
@@ -43,9 +43,9 @@ class _FakeGmailClient:
         self,
         page_token: str | None = None,
         batch_size: int = 50,
-    ) -> tuple[list[dict[str, str]], str | None]:
+    ) -> tuple[list[dict[str, str]], str | None, int | None]:
         _ = batch_size
-        return self._pages.get(page_token, ([], None))
+        return self._pages.get(page_token, ([], None, None))
 
 
 class _FakeEngine:

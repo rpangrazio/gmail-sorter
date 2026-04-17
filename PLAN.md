@@ -126,6 +126,15 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - Verification found remaining requirement gaps in current implementation: SEC-003 (attachment/plain-text tracking artifact sanitization), FR-075 (backfill processed/total progress accounting), and SEC-005 (explicit TLS-version enforcement boundary for Google API transports).
 - Plan reopened with Task 20 — Tertiary PRD Gap Remediation.
 - Completion sentinel `.DONE` removed so implementation loop resumes.
+- Task 20.1 — MIME sanitization hardening for attachments and plain-text tracking artifacts has been executed (`gmail_sorter/utils/mime.py`, `tests/unit/utils/test_mime.py`).
+- Task 20.1 result: MIME extraction now excludes attachment parts (filename or attachment disposition) from prompt-body selection and applies linked-image/tracking URL stripping consistently across plain-text and HTML fallback extraction paths.
+- Task 20.2 — Backfill processed/total progress accounting has been executed (`gmail_sorter/gmail/client.py`, `gmail_sorter/backfill/engine.py`, `tests/unit/gmail/test_client.py`, `tests/unit/backfill/test_engine.py`, `tests/e2e/test_backfill.py`, and `tests/load/test_backfill_throughput.py`).
+- Task 20.2 result: Gmail list pagination now propagates `resultSizeEstimate`, and backfill progress logs now emit `processed/total` when estimates are available while preserving explicit `estimate_source` context for unknown totals.
+- Task 20.3 — TLS 1.2+ enforcement boundary for Google transports has been executed (`gmail_sorter/gmail/client.py` and `gmail_sorter/pubsub/listener.py`).
+- Task 20.3 result: Gmail and Pub/Sub transport checks now include explicit SEC-005 boundary documentation and actionable startup error guidance for insecure custom endpoints, while preserving default Google-managed TLS endpoint behavior.
+- Task 20.4 — Verification and closure update has been executed (`PLAN.md`, `README.md`, `CHANGELOG.md`, and `.DONE`).
+- Task 20.4 result: PRD-to-plan and code-level requirement alignment was revalidated after Tasks 20.1–20.3; no additional implementation tasks were identified in the current PRD scope, and completion sentinel `.DONE` has been restored.
+- Local environment still lacks `pytest` (`pytest: command not found`), so Task 20 test re-execution could not be performed in-session; verification closure is based on code and test-coverage diff review of the implemented Task 20 changes.
 
 ---
 

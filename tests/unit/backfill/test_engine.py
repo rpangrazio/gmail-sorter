@@ -18,7 +18,10 @@ class _Result:
 
 
 class _FakeGmailClient:
-    def __init__(self, pages: dict[str | None, tuple[list[dict[str, str]], str | None]]) -> None:
+    def __init__(
+        self,
+        pages: dict[str | None, tuple[list[dict[str, str]], str | None, int | None]],
+    ) -> None:
         self._pages = pages
         self.calls: list[tuple[str | None, int]] = []
 
@@ -26,9 +29,9 @@ class _FakeGmailClient:
         self,
         page_token: str | None = None,
         batch_size: int = 50,
-    ) -> tuple[list[dict[str, str]], str | None]:
+    ) -> tuple[list[dict[str, str]], str | None, int | None]:
         self.calls.append((page_token, batch_size))
-        return self._pages.get(page_token, ([], None))
+        return self._pages.get(page_token, ([], None, None))
 
 
 class _FakeDatabase:
@@ -76,9 +79,9 @@ def _processing_config(concurrency: int = 2, progress_interval: int = 100) -> Pr
 @pytest.mark.asyncio
 async def test_run_processes_all_paginated_message_ids() -> None:
     pages = {
-        None: ([{"id": "m1"}, {"id": "m2"}], "p2"),
-        "p2": ([{"id": "m3"}, {"id": "m4"}], "p3"),
-        "p3": ([{"id": "m5"}], None),
+        None: ([{"id": "m1"}, {"id": "m2"}], "p2", None),
+        "p2": ([{"id": "m3"}, {"id": "m4"}], "p3", None),
+        "p3": ([{"id": "m5"}], None, None),
     }
     gmail_client = _FakeGmailClient(pages)
     processed_ids: list[str] = []
@@ -118,7 +121,7 @@ async def test_run_resumes_from_interrupted_state_page_token() -> None:
         total_skipped=1,
     )
     pages = {
-        "resume-token": ([{"id": "m4"}], None),
+        "resume-token": ([{"id": "m4"}], None, None),
     }
     gmail_client = _FakeGmailClient(pages)
 
@@ -155,7 +158,11 @@ async def test_run_resumes_from_last_message_id_within_page() -> None:
         total_skipped=0,
     )
     pages = {
-        "resume-token": ([{"id": "m3"}, {"id": "m4"}, {"id": "m5"}, {"id": "m6"}], None),
+        "resume-token": (
+            [{"id": "m3"}, {"id": "m4"}, {"id": "m5"}, {"id": "m6"}],
+            None,
+            None,
+        ),
     }
     gmail_client = _FakeGmailClient(pages)
     processed_ids: list[str] = []
@@ -186,7 +193,7 @@ async def test_run_logs_progress_with_explicit_total_estimate_source(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     pages = {
-        None: ([{"id": "m1"}, {"id": "m2"}, {"id": "m3"}], None),
+        None: ([{"id": "m1"}, {"id": "m2"}, {"id": "m3"}], None, None),
     }
     gmail_client = _FakeGmailClient(pages)
 
@@ -223,6 +230,47 @@ async def test_run_logs_progress_with_explicit_total_estimate_source(
 
 
 @pytest.mark.asyncio
+async def test_run_logs_progress_with_processed_total_when_estimate_available(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    pages = {
+        None: ([{"id": "m1"}, {"id": "m2"}, {"id": "m3"}], None, 250),
+    }
+    gmail_client = _FakeGmailClient(pages)
+
+    class _Engine:
+        async def classify_message(self, _message_id: str) -> _Result:
+            return _Result(skipped=False)
+
+    db = _FakeDatabase()
+    backfill = BackfillEngine(
+        gmail_client=gmail_client,
+        engine=_Engine(),
+        db=db,
+        config=_processing_config(concurrency=2, progress_interval=2),
+        metrics=_FakeMetrics(),
+    )
+
+    with caplog.at_level("INFO"):
+        await backfill.run()
+
+    progress_logs = [
+        record.getMessage() for record in caplog.records if "Backfill progress:" in record.getMessage()
+    ]
+    assert any("Backfill progress: 2/250" in message for message in progress_logs)
+    assert any("estimate_source=gmail_api_result_size_estimate" in message for message in progress_logs)
+
+    structured = [
+        record for record in caplog.records if "Backfill progress:" in record.getMessage()
+    ]
+    assert structured
+    context = getattr(structured[-1], "context", {})
+    assert context.get("operation") == "backfill_run"
+    assert context.get("estimated_total") == 250
+    assert context.get("estimate_source") == "gmail_api_result_size_estimate"
+
+
+@pytest.mark.asyncio
 async def test_process_batch_honors_backfill_concurrency_limit() -> None:
     gmail_client = _FakeGmailClient({None: ([], None)})
     current = 0
@@ -256,7 +304,7 @@ async def test_process_batch_honors_backfill_concurrency_limit() -> None:
 @pytest.mark.asyncio
 async def test_run_marks_interrupted_when_cancelled() -> None:
     pages = {
-        None: ([{"id": "m1"}], None),
+        None: ([{"id": "m1"}], None, None),
     }
     gmail_client = _FakeGmailClient(pages)
 
