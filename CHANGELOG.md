@@ -116,6 +116,11 @@ All notable changes to this project are documented in this file.
   - Updated `gmail_sorter/gmail/client.py` to detect rate-limit failures (HTTP 429 and Gmail rate-limit error payloads) in Gmail API operations and emit `WARNING` logs with operation context before retries.
   - Preserved existing exponential backoff with jitter behavior by keeping retry handling in `gmail_sorter/utils/retry.py`.
   - Expanded `tests/unit/gmail/test_client.py` with coverage validating warning-log emission during rate-limit retries.
+- Added Task 19.3 implementation for backfill resume semantics and progress accounting (FR-074, FR-075):
+  - Updated `gmail_sorter/backfill/engine.py` to resume from the exact next message within a persisted page by honoring `last_message_id` alongside `last_page_token`.
+  - Added durable per-message backfill-state checkpointing during batch execution so interruption recovery avoids mid-page reclassification drift.
+  - Updated backfill progress logging to emit explicit `processed/unknown` progress with estimate-source context when mailbox totals are unavailable from Gmail APIs.
+  - Expanded coverage in `tests/unit/backfill/test_engine.py` and `tests/e2e/test_backfill.py` for mid-page resume behavior and progress log semantics.
 
 ### Changed
 
@@ -159,6 +164,7 @@ All notable changes to this project are documented in this file.
 - Updated `PLAN.md` and `README.md` after a fresh code-first PRD verification pass to reopen remediation work under Task 19 and record newly identified requirement gaps.
 - Updated `PLAN.md` and `README.md` to record Task 19.1 completion, current verification status, and the next remediation target (Task 19.2).
 - Updated `PLAN.md` and `README.md` to record Task 19.2 completion, current verification status, and the next remediation target (Task 19.3).
+- Updated `PLAN.md` and `README.md` to record Task 19.3 completion, current verification status, and the next remediation target (Task 19.4).
 
 ### Removed
 

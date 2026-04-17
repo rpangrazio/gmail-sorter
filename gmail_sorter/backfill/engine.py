@@ -54,24 +54,30 @@ class BackfillEngine:
                     if isinstance(message, dict) and message.get("id")
                 ]
 
-                processed_count, skipped_count = await self._process_batch(message_ids)
+                resumed_message_ids = self._messages_after_last_processed(
+                    message_ids,
+                    state.last_message_id,
+                )
 
-                state.total_processed += processed_count
-                state.total_skipped += skipped_count
+                state.status = "running"
+                state.last_page_token = page_token
+                self._db.upsert_backfill_state(state)
+
+                await self._process_batch_with_state(
+                    message_ids=resumed_message_ids,
+                    state=state,
+                    page_token=page_token,
+                    progress_interval=progress_interval,
+                    next_progress_log=next_progress_log,
+                )
+
+                next_progress_log = ((state.total_processed // progress_interval) + 1) * progress_interval
+
                 if message_ids:
                     state.last_message_id = message_ids[-1]
                 state.last_page_token = next_page_token
                 state.status = "running"
                 self._db.upsert_backfill_state(state)
-
-                while state.total_processed >= next_progress_log:
-                    estimated = state.total_processed if next_page_token is None else state.total_processed + len(message_ids)
-                    LOGGER.info(
-                        "Backfill progress: %s/%s",
-                        state.total_processed,
-                        estimated,
-                    )
-                    next_progress_log += progress_interval
 
                 if next_page_token is None:
                     break
@@ -89,30 +95,94 @@ class BackfillEngine:
             raise
 
     async def _process_batch(self, message_ids: list[str]) -> tuple[int, int]:
-        """Process one page of message IDs with bounded concurrency."""
+        """Backward-compatible wrapper for processing without state persistence."""
+
+        state = BackfillState(
+            id=None,
+            last_page_token=None,
+            last_message_id=None,
+            status="running",
+            started_at=self._utc_now_iso(),
+            completed_at=None,
+            total_processed=0,
+            total_skipped=0,
+        )
+        await self._process_batch_with_state(
+            message_ids=message_ids,
+            state=state,
+            page_token=None,
+            progress_interval=max(1, self._config.backfill_progress_interval),
+            next_progress_log=max(1, self._config.backfill_progress_interval),
+        )
+        return state.total_processed, state.total_skipped
+
+    async def _process_batch_with_state(
+        self,
+        message_ids: list[str],
+        state: BackfillState,
+        page_token: str | None,
+        progress_interval: int,
+        next_progress_log: int,
+    ) -> None:
+        """Process one page of message IDs with bounded concurrency and durable progress."""
 
         if not message_ids:
-            return 0, 0
+            return
 
-        processed = 0
-        skipped = 0
         limit = max(1, self._config.backfill_concurrency)
         semaphore = asyncio.Semaphore(limit)
+        completion_results: dict[int, bool] = {}
+        next_commit_index = 0
 
-        async def classify_one(message_id: str) -> None:
-            nonlocal processed, skipped
-
+        async def classify_one(index: int, message_id: str) -> tuple[int, bool]:
             async with semaphore:
                 result = await self._engine.classify_message(message_id)
+            return index, bool(getattr(result, "skipped", False))
 
-            processed += 1
-            if getattr(result, "skipped", False):
-                skipped += 1
+        tasks = [
+            asyncio.create_task(classify_one(index, message_id))
+            for index, message_id in enumerate(message_ids)
+        ]
 
-        tasks = [asyncio.create_task(classify_one(message_id)) for message_id in message_ids]
-        await asyncio.gather(*tasks)
+        for task in asyncio.as_completed(tasks):
+            index, skipped = await task
+            completion_results[index] = skipped
 
-        return processed, skipped
+            while next_commit_index in completion_results:
+                committed_skipped = completion_results.pop(next_commit_index)
+                committed_message_id = message_ids[next_commit_index]
+                state.total_processed += 1
+                if committed_skipped:
+                    state.total_skipped += 1
+                state.last_message_id = committed_message_id
+                state.last_page_token = page_token
+                state.status = "running"
+                self._db.upsert_backfill_state(state)
+
+                while state.total_processed >= next_progress_log:
+                    LOGGER.info(
+                        "Backfill progress: %s/%s (estimate_source=%s)",
+                        state.total_processed,
+                        "unknown",
+                        "gmail_api_result_size_unavailable",
+                    )
+                    next_progress_log += progress_interval
+
+                next_commit_index += 1
+
+    @staticmethod
+    def _messages_after_last_processed(
+        message_ids: list[str],
+        last_message_id: str | None,
+    ) -> list[str]:
+        """Return message IDs after the last durably processed message ID."""
+
+        if not message_ids or not last_message_id:
+            return message_ids
+        if last_message_id not in message_ids:
+            return message_ids
+        resume_index = message_ids.index(last_message_id) + 1
+        return message_ids[resume_index:]
 
     def _initialize_state(self) -> BackfillState:
         """Return resumable state or initialize a fresh run state."""

@@ -226,3 +226,56 @@ def test_backfill_resume_after_interruption_starts_from_saved_page(
     second_run = runner.invoke(main, ["backfill"])
     assert second_run.exit_code == 0
     assert gmail_client_second.calls[0] == "p2"
+
+
+def test_backfill_resume_skips_already_processed_ids_on_resume_page(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Resume should continue after persisted last_message_id within the saved page."""
+
+    config = _config(tmp_path / "e2e-backfill-resume-last-message.db")
+    config.processing.batch_size = 4
+    pages = {
+        None: ([{"id": "m1"}, {"id": "m2"}, {"id": "m3"}, {"id": "m4"}], "p2"),
+        "p2": ([{"id": "m3"}, {"id": "m4"}, {"id": "m5"}, {"id": "m6"}], None),
+    }
+
+    db = Database(config.database.path)
+    db.initialize()
+    try:
+        db.upsert_backfill_state(
+            BackfillState(
+                id=None,
+                last_page_token="p2",
+                last_message_id="m4",
+                status="interrupted",
+                started_at="2026-04-15T00:00:00Z",
+                completed_at="2026-04-15T00:05:00Z",
+                total_processed=4,
+                total_skipped=0,
+            )
+        )
+    finally:
+        db.close()
+
+    processed_ids: list[str] = []
+
+    class _TrackingEngine(_FakeEngine):
+        async def classify_message(self, message_id: str) -> _ClassificationResult:
+            processed_ids.append(message_id)
+            return await super().classify_message(message_id)
+
+    gmail_client = _FakeGmailClient(pages)
+    monkeypatch.setattr("gmail_sorter.observability.configure_logging", lambda *_args: None)
+    monkeypatch.setattr("gmail_sorter.cli.load_config", lambda _path: config)
+    monkeypatch.setattr(
+        "gmail_sorter.cli._build_engine",
+        lambda _cfg, db: (_TrackingEngine(db), gmail_client, _FakeLlmClient(), _FakeMetrics()),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["backfill"])
+
+    assert result.exit_code == 0
+    assert processed_ids == ["m5", "m6"]

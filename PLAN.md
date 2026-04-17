@@ -87,6 +87,10 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - Task 19.2 result: Gmail API call paths now detect rate-limit failures (HTTP 429 and rate-limit reason payloads) and emit `WARNING` logs with operation context before retry backoff continues, preserving existing exponential backoff and jitter behavior.
 - PRD-to-plan comparison revalidated after Task 19.2 execution; task ordering and remaining scope are still aligned to PRD requirements.
 - Local environment still lacks `pytest` (`pytest: command not found`), so Task 19.2 unit tests could not be executed in-session.
+- Task 19.3 — Backfill resume semantics and progress accounting has been executed (`gmail_sorter/backfill/engine.py`, `tests/unit/backfill/test_engine.py`, and `tests/e2e/test_backfill.py`).
+- Task 19.3 result: backfill resume now honors persisted `last_message_id` within the saved page token window to continue from the exact next message, state persistence is updated incrementally per committed message to reduce reprocessing drift after interruption, and progress logs now emit `processed/unknown` with explicit estimate-source context when Gmail total counts are unavailable.
+- PRD-to-plan comparison revalidated after Task 19.3 execution; task ordering and remaining scope are still aligned to PRD requirements.
+- Local environment still lacks a Python runtime (`python: command not found`), so Task 19.3 unit/e2e tests could not be executed in-session.
 
 ---
 

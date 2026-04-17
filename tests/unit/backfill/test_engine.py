@@ -62,13 +62,14 @@ class _FakeMetrics:
     pass
 
 
-def _processing_config(concurrency: int = 2) -> ProcessingConfig:
+def _processing_config(concurrency: int = 2, progress_interval: int = 100) -> ProcessingConfig:
     return ProcessingConfig(
         body_max_length=4096,
         batch_size=2,
         backfill_concurrency=concurrency,
         archive_after_label=False,
         dry_run=False,
+        backfill_progress_interval=progress_interval,
     )
 
 
@@ -139,6 +140,77 @@ async def test_run_resumes_from_interrupted_state_page_token() -> None:
     assert gmail_client.calls[0][0] == "resume-token"
     assert db.saved_states[-1].status == "completed"
     assert db.saved_states[-1].total_processed == 4
+
+
+@pytest.mark.asyncio
+async def test_run_resumes_from_last_message_id_within_page() -> None:
+    interrupted = BackfillState(
+        id=9,
+        last_page_token="resume-token",
+        last_message_id="m4",
+        status="interrupted",
+        started_at="2026-04-15T00:00:00Z",
+        completed_at="2026-04-15T00:01:00Z",
+        total_processed=4,
+        total_skipped=0,
+    )
+    pages = {
+        "resume-token": ([{"id": "m3"}, {"id": "m4"}, {"id": "m5"}, {"id": "m6"}], None),
+    }
+    gmail_client = _FakeGmailClient(pages)
+    processed_ids: list[str] = []
+
+    class _Engine:
+        async def classify_message(self, message_id: str) -> _Result:
+            processed_ids.append(message_id)
+            return _Result(skipped=False)
+
+    db = _FakeDatabase(initial_state=interrupted)
+    backfill = BackfillEngine(
+        gmail_client=gmail_client,
+        engine=_Engine(),
+        db=db,
+        config=_processing_config(concurrency=2),
+        metrics=_FakeMetrics(),
+    )
+
+    await backfill.run()
+
+    assert processed_ids == ["m5", "m6"]
+    assert db.saved_states[-1].status == "completed"
+    assert db.saved_states[-1].total_processed == 6
+
+
+@pytest.mark.asyncio
+async def test_run_logs_progress_with_explicit_total_estimate_source(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    pages = {
+        None: ([{"id": "m1"}, {"id": "m2"}, {"id": "m3"}], None),
+    }
+    gmail_client = _FakeGmailClient(pages)
+
+    class _Engine:
+        async def classify_message(self, _message_id: str) -> _Result:
+            return _Result(skipped=False)
+
+    db = _FakeDatabase()
+    backfill = BackfillEngine(
+        gmail_client=gmail_client,
+        engine=_Engine(),
+        db=db,
+        config=_processing_config(concurrency=2, progress_interval=2),
+        metrics=_FakeMetrics(),
+    )
+
+    with caplog.at_level("INFO"):
+        await backfill.run()
+
+    progress_logs = [
+        record.getMessage() for record in caplog.records if "Backfill progress:" in record.getMessage()
+    ]
+    assert any("Backfill progress: 2/unknown" in message for message in progress_logs)
+    assert any("estimate_source=gmail_api_result_size_unavailable" in message for message in progress_logs)
 
 
 @pytest.mark.asyncio
