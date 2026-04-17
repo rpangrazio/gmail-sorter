@@ -139,6 +139,10 @@ All notable changes to this project are documented in this file.
   - Updated `gmail_sorter/backfill/engine.py` progress logging to include structured context fields for operation, processed counts, estimate metadata, and last committed message ID.
   - Updated `gmail_sorter/pubsub/watcher.py` watch registration/renewal logs to include structured context and taxonomy-aligned renewal failure metadata.
   - Expanded tests in `tests/unit/classifier/test_engine.py`, `tests/unit/backfill/test_engine.py`, and `tests/unit/pubsub/test_watcher.py` to validate required context shape.
+- Added Task 19.8 implementation for LLM latency metric observation wiring (ERR-003):
+  - Updated `gmail_sorter/classifier/engine.py` to wrap LLM classify calls with elapsed-time measurement and record observations on `llm_latency_seconds`.
+  - Ensured latency observations are emitted for both successful and failing LLM paths via `finally`-based metric recording.
+  - Expanded coverage in `tests/unit/classifier/test_engine.py` and `tests/integration/test_pipeline.py` to assert histogram observation behavior.
 
 ### Changed
 
@@ -187,6 +191,7 @@ All notable changes to this project are documented in this file.
 - Updated `PLAN.md` and `README.md` to record Task 19.5 completion, current verification status, and the next remediation target (Task 19.6).
 - Updated `PLAN.md` and `README.md` to record Task 19.6 completion, current verification status, and the next remediation target (Task 19.7).
 - Updated `PLAN.md` and `README.md` to record Task 19.7 completion, current verification status, and the next remediation target (Task 19.8).
+- Updated `PLAN.md` and `README.md` to record Task 19.8 completion, current verification status, and the next remediation target (Task 19.9).
 
 ### Removed
 

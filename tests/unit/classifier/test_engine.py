@@ -158,6 +158,15 @@ class _FakeMetrics:
         self.emails_processed_total = _Counter()
         self.emails_classified_total = _LabelCounter()
         self.classification_errors_total = _LabelCounter()
+        self.llm_latency_seconds = _LatencyHistogram()
+
+
+class _LatencyHistogram:
+    def __init__(self) -> None:
+        self.values: list[float] = []
+
+    def observe(self, value: float) -> None:
+        self.values.append(value)
 
 
 class _FailingLlmClient:
@@ -233,6 +242,8 @@ async def test_classify_message_happy_path() -> None:
     assert metrics.emails_processed_total.count == 1
     assert metrics.emails_classified_total.by_category["alerts"] == 1
     assert llm_client.calls == 1
+    assert len(metrics.llm_latency_seconds.values) == 1
+    assert metrics.llm_latency_seconds.values[0] >= 0.0
 
 
 @pytest.mark.asyncio
@@ -602,6 +613,8 @@ async def test_classify_message_sends_critical_webhook_payload(monkeypatch: pyte
     assert "timestamp" in payloads[0]
     assert database.dlq_entries
     assert metrics.classification_errors_total.by_category["llm_error"] == 1
+    assert len(metrics.llm_latency_seconds.values) == 1
+    assert metrics.llm_latency_seconds.values[0] >= 0.0
 
 
 def test_error_type_mapping_uses_prd_taxonomy() -> None:

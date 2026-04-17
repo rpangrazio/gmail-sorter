@@ -137,6 +137,15 @@ class _FakeMetrics:
     def __init__(self) -> None:
         self.emails_processed_total = _Counter()
         self.emails_classified_total = _LabelCounter()
+        self.llm_latency_seconds = _LatencyHistogram()
+
+
+class _LatencyHistogram:
+    def __init__(self) -> None:
+        self.values: list[float] = []
+
+    def observe(self, value: float) -> None:
+        self.values.append(value)
 
 
 def _raw_message(message_id: str = "msg-1", label_ids: list[str] | None = None) -> dict:
@@ -176,14 +185,14 @@ def _build_engine(config: AppConfig, raw_message: dict, raw_llm_response: str):
         prompt_builder=builder,
         metrics=metrics,
     )
-    return engine, gmail_client, llm_client, database
+    return engine, gmail_client, llm_client, database, metrics
 
 
 @pytest.mark.asyncio
 async def test_classify_message_applies_label_and_writes_db() -> None:
     """A full classification run should label the message and persist a record."""
 
-    engine, gmail_client, llm_client, database = _build_engine(
+    engine, gmail_client, llm_client, database, metrics = _build_engine(
         config=_config(dry_run=False),
         raw_message=_raw_message(),
         raw_llm_response=json.dumps(
@@ -202,13 +211,15 @@ async def test_classify_message_applies_label_and_writes_db() -> None:
     assert gmail_client.applied == [("msg-1", "Label_alerts", False)]
     assert database.get_classification("msg-1") is not None
     assert llm_client.calls == 1
+    assert len(metrics.llm_latency_seconds.values) == 1
+    assert metrics.llm_latency_seconds.values[0] >= 0.0
 
 
 @pytest.mark.asyncio
 async def test_repeat_classification_is_skipped_by_idempotency() -> None:
     """Reprocessing a message should skip after the first successful write."""
 
-    engine, gmail_client, llm_client, database = _build_engine(
+    engine, gmail_client, llm_client, database, _metrics = _build_engine(
         config=_config(dry_run=False),
         raw_message=_raw_message(),
         raw_llm_response=json.dumps(
@@ -234,7 +245,7 @@ async def test_repeat_classification_is_skipped_by_idempotency() -> None:
 async def test_dry_run_skips_label_application_and_db_write() -> None:
     """Dry-run classification should not modify Gmail state or persistence."""
 
-    engine, gmail_client, llm_client, database = _build_engine(
+    engine, gmail_client, llm_client, database, _metrics = _build_engine(
         config=_config(dry_run=True),
         raw_message=_raw_message(),
         raw_llm_response=json.dumps(

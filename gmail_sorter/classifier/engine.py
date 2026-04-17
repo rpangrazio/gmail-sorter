@@ -118,7 +118,7 @@ class ClassificationEngine:
                 )
 
             system_prompt, user_prompt = self._prompt_builder.build(email)
-            llm_output = await self._llm_client.classify(system_prompt, user_prompt)
+            llm_output = await self._classify_with_latency_metric(system_prompt, user_prompt)
 
             raw_content = self._extract_raw_content(llm_output)
             parsed = parse_response(
@@ -324,6 +324,23 @@ class ClassificationEngine:
             increment = getattr(labelled_metric, "inc", None)
             if callable(increment):
                 increment()
+
+    async def _classify_with_latency_metric(self, system_prompt: str, user_prompt: str) -> Any:
+        """Call the LLM and observe latency in seconds when configured."""
+
+        started = time.perf_counter()
+        try:
+            return await self._llm_client.classify(system_prompt, user_prompt)
+        finally:
+            self._observe_llm_latency(time.perf_counter() - started)
+
+    def _observe_llm_latency(self, duration_seconds: float) -> None:
+        """Record LLM call duration to histogram when metrics are configured."""
+
+        metric = getattr(self._metrics, "llm_latency_seconds", None)
+        observe = getattr(metric, "observe", None)
+        if callable(observe):
+            observe(duration_seconds)
 
     async def _notify_critical_error(self, error_type: str, message_id: str, description: str) -> None:
         """Send optional webhook notifications for critical pipeline failures."""

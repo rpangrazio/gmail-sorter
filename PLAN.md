@@ -107,7 +107,11 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - Task 19.7 result: watch-register, backfill-progress, and sender-policy skip logs now include explicit structured context fields (`operation` plus relevant identifiers) and unit coverage asserts representative context-shape guarantees across watcher/backfill/classifier paths.
 - PRD-to-plan comparison revalidated after Task 19.7 execution; task ordering and remaining scope are still aligned to PRD requirements.
 - Local environment still lacks `pytest` (`pytest: command not found`), so Task 19.7 unit tests could not be executed in-session.
-- Next task selected from plan/repository comparison: Task 19.8 — LLM latency metric observation wiring (ERR-003).
+- Task 19.8 — LLM latency metric observation wiring has been executed (`gmail_sorter/classifier/engine.py`, `tests/unit/classifier/test_engine.py`, and `tests/integration/test_pipeline.py`).
+- Task 19.8 result: classification now records per-call LLM latency on the declared `llm_latency_seconds` histogram with `finally`-path observation so both successful and failing classify attempts are measured.
+- PRD-to-plan comparison revalidated after Task 19.8 execution; task ordering and remaining scope are still aligned to PRD requirements.
+- Local environment still lacks a Python runtime (`python: command not found`, `python3: command not found`), so Task 19.8 unit/integration tests could not be executed in-session.
+- Next task selected from plan/repository comparison: Task 19.9 — DLQ attempt tracking accuracy (ERR-004).
 
 ---
 
