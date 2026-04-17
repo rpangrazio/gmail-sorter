@@ -152,6 +152,10 @@ All notable changes to this project are documented in this file.
   - Updated `gmail_sorter/cli.py` to resolve the default configuration path from `GMAIL_SORTER_CONFIG` when the global `--config` option is not provided.
   - Preserved explicit `--config` CLI flag precedence over environment-derived defaults.
   - Expanded `tests/unit/test_cli.py` with coverage for environment-based config-path defaulting and CLI-over-environment precedence.
+- Added Task 19.11 verification and closure updates:
+  - Re-ran PRD-to-repository and PRD-to-plan verification after completion of Tasks 19.1 through 19.10 and confirmed no remaining requirement gaps.
+  - Updated `PLAN.md` and `README.md` to record remediation closure and finalized verification status.
+  - Restored the `.DONE` completion sentinel to mark the repository as currently complete against tracked PRD remediation scope.
 
 ### Changed
 
@@ -203,6 +207,7 @@ All notable changes to this project are documented in this file.
 - Updated `PLAN.md` and `README.md` to record Task 19.8 completion, current verification status, and the next remediation target (Task 19.9).
 - Updated `PLAN.md` and `README.md` to record Task 19.9 completion, current verification status, and the next remediation target (Task 19.10).
 - Updated `PLAN.md` and `README.md` to record Task 19.10 completion, current verification status, and the next remediation target (Task 19.11).
+- Updated `PLAN.md` and `README.md` to record Task 19.11 completion, PRD verification closure, and current no-remaining-task status.
 
 ### Removed
 
