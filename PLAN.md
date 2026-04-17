@@ -67,7 +67,11 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - Task 18.7 result: centralized taxonomy normalization now enforces `{auth_error, api_error, llm_error, config_error, pubsub_error}` across structured logs and error metrics, classifier failures now emit taxonomy-tagged logs and optional critical webhook payloads (`error_type`, `message_id`, `timestamp`, `description`), and Pub/Sub failures now increment taxonomy-aligned error metrics with explicit `pubsub_error` logging.
 - PRD-to-plan comparison revalidated after Task 18.7 execution; task ordering and remaining scope are still aligned to PRD requirements.
 - Local environment still lacks `pytest` (`pytest: command not found`), so Task 18.7 unit tests could not be executed in-session.
-- **Next task to execute:** Task 18.8 — Enforce TLS 1.2+ for outbound HTTP clients.
+- Task 18.8 — Enforce TLS 1.2+ for outbound HTTP clients has been executed (`gmail_sorter/utils/tls.py`, `gmail_sorter/llm/client.py`, `gmail_sorter/classifier/engine.py`, `tests/unit/utils/test_tls.py`, `tests/unit/llm/test_client.py`, and `tests/unit/classifier/test_engine.py`).
+- Task 18.8 result: outbound `httpx` clients now use an explicit TLS context enforcing minimum TLS 1.2, insecure caller-provided contexts are rejected by helper validation, and unit tests cover TLS enforcement wiring and insecure-context rejection behavior.
+- PRD-to-plan comparison revalidated after Task 18.8 execution; remaining PRD gap item 18.9 was already implemented in repository wiring (`gmail_sorter/cli.py` uses `config.observability.health_port` and `config.observability.metrics_port`) and covered by existing CLI/runtime tests.
+- Full repository-to-PRD verification sweep completed on April 17, 2026; no remaining implementation tasks were identified in this plan.
+- Completion sentinel `.DONE` has been reintroduced because all plan tasks are now complete.
 
 ---
 

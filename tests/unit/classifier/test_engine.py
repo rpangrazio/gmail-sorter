@@ -505,8 +505,9 @@ async def test_classify_message_sends_critical_webhook_payload(monkeypatch: pyte
             return
 
     class _FakeAsyncClient:
-        def __init__(self, timeout: float) -> None:
+        def __init__(self, timeout: float, verify: object) -> None:
             _ = timeout
+            _ = verify
 
         async def __aenter__(self) -> "_FakeAsyncClient":
             return self

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import ssl
+from typing import Any
 
 import httpx
 import pytest
@@ -102,6 +105,29 @@ def test_init_raises_system_exit_when_api_key_missing(
 
     with pytest.raises(SystemExit):
         LlmClient(_llm_config(), log_prompts=False)
+
+
+def test_init_uses_tls12_plus_verify_context(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Client transport should enforce TLS 1.2+ via SSL verify context."""
+
+    monkeypatch.setenv("GITHUB_COPILOT_API_KEY", "test-key")
+
+    captured: dict[str, Any] = {}
+
+    class _FakeAsyncClient:
+        def __init__(self, **kwargs: Any) -> None:
+            captured.update(kwargs)
+
+        async def aclose(self) -> None:
+            return
+
+    monkeypatch.setattr("gmail_sorter.llm.client.httpx.AsyncClient", _FakeAsyncClient)
+
+    client = LlmClient(_llm_config(), log_prompts=False)
+    assert isinstance(captured["verify"], ssl.SSLContext)
+    assert captured["verify"].minimum_version >= ssl.TLSVersion.TLSv1_2
+
+    asyncio.run(client.close())
 
 
 @pytest.mark.asyncio

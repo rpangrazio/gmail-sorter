@@ -68,6 +68,11 @@ This repository currently contains:
   - Updated Pub/Sub failure handling in `gmail_sorter/pubsub/listener.py` to emit explicit `pubsub_error` logs and increment taxonomy-aligned error metrics
   - Updated structured logging in `gmail_sorter/observability/logging.py` so `error_type` is always normalized to the required PRD set
   - Expanded unit coverage in `tests/unit/classifier/test_engine.py`, `tests/unit/pubsub/test_listener.py`, `tests/unit/observability/test_logging.py`, `tests/unit/observability/test_error_taxonomy.py`, and `tests/unit/config/test_loader.py`
+- Implemented PRD gap-remediation Task 18.8 for SEC-005 TLS minimum version enforcement:
+  - Added outbound TLS helper `gmail_sorter/utils/tls.py` that builds/validates SSL contexts with minimum version TLS 1.2
+  - Updated `gmail_sorter/llm/client.py` to use the enforced TLS context for Copilot API calls
+  - Updated classifier webhook notifications in `gmail_sorter/classifier/engine.py` to use the same TLS enforcement
+  - Added/updated tests in `tests/unit/utils/test_tls.py`, `tests/unit/llm/test_client.py`, and `tests/unit/classifier/test_engine.py` to verify TLS 1.2+ enforcement and insecure-context rejection behavior
 - Completed final integration and packaging checks with containerized verification for installability, full test suite execution, configuration validation, Docker build, and prompt rendering
 - Added packaging and test hardening updates:
   - Explicit setuptools package discovery for `gmail_sorter` in `pyproject.toml`
@@ -78,7 +83,7 @@ This repository currently contains:
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-PRD verification was re-run on April 15, 2026 and found unresolved requirement gaps. Implementation is in active remediation mode, tracked in `PLAN.md` Task 18. Tasks 18.1 through 18.7 are complete and Task 18.8 is next.
+PRD verification was re-run on April 17, 2026. Task 18 remediation is complete through 18.8, Task 18.9 was already implemented in CLI observability wiring, and the plan is now marked complete (`.DONE` present).
 
 ## Project Structure
 

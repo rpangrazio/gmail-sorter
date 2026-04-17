@@ -96,6 +96,11 @@ All notable changes to this project are documented in this file.
   - Updated `gmail_sorter/pubsub/listener.py` to label Pub/Sub failures as `pubsub_error` in logs and increment taxonomy-aligned error metrics.
   - Updated `gmail_sorter/observability/logging.py` to always normalize `error_type` into the required taxonomy labels.
   - Expanded tests in `tests/unit/classifier/test_engine.py`, `tests/unit/pubsub/test_listener.py`, `tests/unit/observability/test_logging.py`, `tests/unit/observability/test_error_taxonomy.py`, and `tests/unit/config/test_loader.py` for taxonomy enforcement and critical webhook payload emission.
+- Added PRD gap-remediation Task 18.8 implementation updates:
+  - Added `gmail_sorter/utils/tls.py` with TLS-context helpers enforcing a minimum outbound TLS version of 1.2.
+  - Updated outbound `httpx` clients in `gmail_sorter/llm/client.py` and `gmail_sorter/classifier/engine.py` to use explicit TLS 1.2+ SSL contexts.
+  - Expanded tests in `tests/unit/utils/test_tls.py`, `tests/unit/llm/test_client.py`, and `tests/unit/classifier/test_engine.py` for TLS enforcement and insecure-context rejection.
+- Added `.DONE` sentinel after follow-up PRD verification confirmed no remaining plan tasks.
 
 ### Changed
 
@@ -132,6 +137,8 @@ All notable changes to this project are documented in this file.
 - Updated `README.md` to document remediation status through Task 18.6 and the next task focus.
 - Updated `PLAN.md` execution status to mark Task 18.7 complete and set Task 18.8 as the next implementation task.
 - Updated `README.md` to document remediation status through Task 18.7 and the next task focus.
+- Updated `PLAN.md` execution status to mark Task 18.8 complete, record full PRD/repository re-verification, and close Task 18 with no remaining tasks.
+- Updated `README.md` to reflect completed Task 18 remediation and plan completion state.
 
 ### Removed
 

@@ -15,6 +15,7 @@ import httpx
 from gmail_sorter.config.models import LlmConfig
 from gmail_sorter.llm.response_parser import LlmResponse, parse_response
 from gmail_sorter.utils.retry import with_retry
+from gmail_sorter.utils.tls import build_tls12_context
 
 LOGGER = logging.getLogger(__name__)
 
@@ -44,6 +45,7 @@ class LlmClient:
         self._http_client = httpx.AsyncClient(
             http2=True,
             timeout=config.timeout_seconds,
+            verify=build_tls12_context(),
         )
 
     async def classify(self, system_prompt: str, user_prompt: str) -> LlmResponse:
