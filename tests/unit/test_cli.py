@@ -409,3 +409,123 @@ def test_run_service_uses_configured_observability_ports(monkeypatch) -> None:
 
     assert observed["metrics_port"] == 19090
     assert observed["health_port"] == 18080
+
+
+def test_run_service_reconnects_listener_and_updates_health(monkeypatch) -> None:
+    """Service should retry listener startup and toggle health on transient failures."""
+
+    observed = {
+        "listener_start_calls": 0,
+        "listener_instances": 0,
+        "healthy_calls": 0,
+        "unhealthy_reasons": [],
+    }
+
+    class _FakeMetrics:
+        def start_http_server(self, port: int = 9090) -> None:
+            _ = port
+
+    class _FakeLlmClient:
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(
+        "gmail_sorter.cli._build_engine",
+        lambda config, db: (SimpleNamespace(), SimpleNamespace(), _FakeLlmClient(), _FakeMetrics()),
+    )
+
+    observability_module = ModuleType("gmail_sorter.observability")
+
+    class _HealthServer:
+        def __init__(self, port: int = 8080) -> None:
+            _ = port
+
+        def start(self) -> None:
+            return None
+
+        def stop(self) -> None:
+            return None
+
+        def set_healthy(self, last_message_at: str | None = None) -> None:
+            _ = last_message_at
+            observed["healthy_calls"] += 1
+
+        def set_unhealthy(self, reason: str) -> None:
+            observed["unhealthy_reasons"].append(reason)
+
+    observability_module.HealthServer = _HealthServer
+    monkeypatch.setitem(sys.modules, "gmail_sorter.observability", observability_module)
+
+    pubsub_listener_module = ModuleType("gmail_sorter.pubsub.listener")
+
+    class _PubSubListener:
+        def __init__(self, config, engine, metrics) -> None:
+            _ = (config, engine, metrics)
+            observed["listener_instances"] += 1
+
+        async def start(self) -> None:
+            observed["listener_start_calls"] += 1
+            if observed["listener_start_calls"] == 1:
+                raise RuntimeError("transient listener error")
+
+        async def stop(self) -> None:
+            return None
+
+    pubsub_listener_module.PubSubListener = _PubSubListener
+    monkeypatch.setitem(sys.modules, "gmail_sorter.pubsub.listener", pubsub_listener_module)
+
+    pubsub_watcher_module = ModuleType("gmail_sorter.pubsub.watcher")
+
+    class _GmailWatcher:
+        def __init__(self, gmail_client, config) -> None:
+            _ = (gmail_client, config)
+
+        def register(self) -> dict:
+            return {}
+
+        def schedule_renewal(self) -> None:
+            return None
+
+        def stop(self) -> None:
+            return None
+
+    pubsub_watcher_module.GmailWatcher = _GmailWatcher
+    monkeypatch.setitem(sys.modules, "gmail_sorter.pubsub.watcher", pubsub_watcher_module)
+
+    backfill_module = ModuleType("gmail_sorter.backfill.engine")
+
+    class _BackfillEngine:
+        def __init__(self, **kwargs) -> None:
+            _ = kwargs
+
+        async def run(self) -> None:
+            return None
+
+    backfill_module.BackfillEngine = _BackfillEngine
+    monkeypatch.setitem(sys.modules, "gmail_sorter.backfill.engine", backfill_module)
+
+    original_sleep = asyncio.sleep
+    sleep_calls = {"count": 0}
+
+    async def _fast_sleep(delay: float) -> None:
+        sleep_calls["count"] += 1
+        if sleep_calls["count"] <= 1:
+            await original_sleep(0)
+            return
+        raise KeyboardInterrupt()
+
+    monkeypatch.setattr("gmail_sorter.cli.asyncio.sleep", _fast_sleep)
+
+    config = SimpleNamespace(
+        database=SimpleNamespace(path=":memory:", retention_days=90),
+        observability=SimpleNamespace(health_port=18080, metrics_port=19090),
+        pubsub=SimpleNamespace(),
+    )
+
+    with pytest.raises(KeyboardInterrupt):
+        asyncio.run(_run_service(config, run_backfill=False))
+
+    assert observed["listener_start_calls"] >= 2
+    assert observed["listener_instances"] >= 2
+    assert observed["healthy_calls"] >= 2
+    assert "pubsub listener disconnected" in observed["unhealthy_reasons"]

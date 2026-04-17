@@ -91,6 +91,10 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - Task 19.3 result: backfill resume now honors persisted `last_message_id` within the saved page token window to continue from the exact next message, state persistence is updated incrementally per committed message to reduce reprocessing drift after interruption, and progress logs now emit `processed/unknown` with explicit estimate-source context when Gmail total counts are unavailable.
 - PRD-to-plan comparison revalidated after Task 19.3 execution; task ordering and remaining scope are still aligned to PRD requirements.
 - Local environment still lacks a Python runtime (`python: command not found`), so Task 19.3 unit/e2e tests could not be executed in-session.
+- Task 19.4 — Listener resiliency and reconnect loop has been executed (`gmail_sorter/cli.py` and `tests/unit/test_cli.py`).
+- Task 19.4 result: runtime `run` loop now treats listener failures as transient by transitioning health to unhealthy, stopping and recreating the listener with bounded exponential reconnect delay, and restoring health when listener restart succeeds instead of exiting service permanently.
+- PRD-to-plan comparison revalidated after Task 19.4 execution; task ordering and remaining scope are still aligned to PRD requirements.
+- Local environment still lacks a Python runtime (`python: command not found`, `python3: command not found`), so Task 19.4 unit tests could not be executed in-session.
 
 ---
 

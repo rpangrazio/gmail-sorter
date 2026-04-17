@@ -121,6 +121,10 @@ All notable changes to this project are documented in this file.
   - Added durable per-message backfill-state checkpointing during batch execution so interruption recovery avoids mid-page reclassification drift.
   - Updated backfill progress logging to emit explicit `processed/unknown` progress with estimate-source context when mailbox totals are unavailable from Gmail APIs.
   - Expanded coverage in `tests/unit/backfill/test_engine.py` and `tests/e2e/test_backfill.py` for mid-page resume behavior and progress log semantics.
+- Added Task 19.4 implementation for listener resiliency and runtime health transitions (NFR-003, PRD 14.3):
+  - Updated `gmail_sorter/cli.py` service runtime loop to treat listener failures as transient, stop and recreate the listener, and retry startup with bounded exponential backoff.
+  - Added runtime health-state transitions so listener failures mark `/health` unhealthy and successful listener restarts restore healthy status.
+  - Expanded CLI runtime tests in `tests/unit/test_cli.py` to validate reconnect behavior and health transition signaling.
 
 ### Changed
 
@@ -165,6 +169,7 @@ All notable changes to this project are documented in this file.
 - Updated `PLAN.md` and `README.md` to record Task 19.1 completion, current verification status, and the next remediation target (Task 19.2).
 - Updated `PLAN.md` and `README.md` to record Task 19.2 completion, current verification status, and the next remediation target (Task 19.3).
 - Updated `PLAN.md` and `README.md` to record Task 19.3 completion, current verification status, and the next remediation target (Task 19.4).
+- Updated `PLAN.md` and `README.md` to record Task 19.4 completion, current verification status, and the next remediation target (Task 19.5).
 
 ### Removed
 

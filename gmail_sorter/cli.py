@@ -253,6 +253,8 @@ async def _run_service(config: AppConfig, run_backfill: bool) -> None:
     listener_task: asyncio.Task[None] | None = None
 
     stop_event = asyncio.Event()
+    listener_retry_delay_seconds = 2.0
+    max_listener_retry_delay_seconds = 30.0
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
         with contextlib.suppress(NotImplementedError):
@@ -291,8 +293,38 @@ async def _run_service(config: AppConfig, run_backfill: bool) -> None:
 
         while not stop_event.is_set():
             if listener_task.done():
-                await listener_task
-                break
+                listener_error: Exception | None = None
+                try:
+                    await listener_task
+                except Exception as exc:  # pragma: no cover - covered by unit tests
+                    listener_error = exc
+
+                if stop_event.is_set():
+                    break
+
+                if listener_error is None:
+                    if health_server is not None:
+                        health_server.set_unhealthy("listener exited unexpectedly")
+                    break
+
+                if health_server is not None:
+                    health_server.set_unhealthy("pubsub listener disconnected")
+
+                if listener is not None:
+                    with contextlib.suppress(Exception):
+                        await listener.stop()
+
+                await asyncio.sleep(listener_retry_delay_seconds)
+                listener_retry_delay_seconds = min(
+                    listener_retry_delay_seconds * 2.0,
+                    max_listener_retry_delay_seconds,
+                )
+
+                listener = PubSubListener(config=config.pubsub, engine=engine, metrics=metrics)
+                listener_task = asyncio.create_task(listener.start())
+                if health_server is not None:
+                    health_server.set_healthy(last_message_at=datetime.utcnow().isoformat() + "Z")
+                continue
 
             if backfill_task is not None and backfill_task.done():
                 await backfill_task
