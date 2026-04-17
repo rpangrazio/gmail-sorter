@@ -71,7 +71,10 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - Task 18.8 result: all non-Google outbound `httpx.AsyncClient` call sites now enforce TLS 1.2+ via explicit SSL context minimum-version controls; `LlmClient` now validates injected TLS contexts and rejects insecure minimum versions.
 - PRD-to-plan comparison revalidated after Task 18.8 execution; task ordering and remaining scope are still aligned to PRD requirements.
 - Local environment still lacks a Python runtime (`python: command not found`, `python3: command not found`), so Task 18.8 unit tests could not be executed in-session.
-- **Next task to execute:** Task 18.9 — Health and metrics ports from configuration.
+- Task 18.9 — Health and metrics ports from configuration has been executed (`gmail_sorter/cli.py` and `tests/unit/test_cli.py`).
+- Task 18.9 result: runtime observability startup now uses `config.observability.health_port` and `config.observability.metrics_port` for Health and Prometheus endpoints, and CLI wiring tests validate configured-port usage.
+- Follow-up PRD verification sweep completed on April 17, 2026; previously tracked gap set is closed and no additional implementation tasks remain in this plan.
+- Completion sentinel `.DONE` has been reintroduced after verification confirmed no remaining PRD remediation tasks.
 
 ---
 

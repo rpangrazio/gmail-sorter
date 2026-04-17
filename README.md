@@ -73,6 +73,9 @@ This repository currently contains:
   - Added injected TLS-context validation in `LlmClient` so insecure custom contexts (minimum version below TLS 1.2) are rejected at initialization
   - Updated webhook delivery HTTP client wiring in `gmail_sorter/classifier/engine.py` to enforce TLS 1.2+ for outbound critical-error notifications
   - Expanded unit coverage in `tests/unit/llm/test_client.py` and `tests/unit/classifier/test_engine.py` for TLS baseline enforcement and updated HTTP client construction
+- Implemented PRD gap-remediation Task 18.9 for observability endpoint configurability:
+  - Confirmed service runtime wiring starts Health and Prometheus servers using `config.observability.health_port` and `config.observability.metrics_port` in `gmail_sorter/cli.py`
+  - Added/maintained CLI runtime wiring coverage in `tests/unit/test_cli.py` for configured observability port usage during service startup
 - Completed final integration and packaging checks with containerized verification for installability, full test suite execution, configuration validation, Docker build, and prompt rendering
 - Added packaging and test hardening updates:
   - Explicit setuptools package discovery for `gmail_sorter` in `pyproject.toml`
@@ -83,7 +86,7 @@ This repository currently contains:
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-PRD verification was re-run on April 15, 2026 and found unresolved requirement gaps. Implementation is in active remediation mode, tracked in `PLAN.md` Task 18. Tasks 18.1 through 18.8 are complete and Task 18.9 is next.
+PRD verification was re-run on April 17, 2026 after Task 18.9 validation. The remediation queue in `PLAN.md` Task 18 is now complete, and `.DONE` has been restored to mark completion.
 
 ## Project Structure
 
@@ -236,4 +239,4 @@ docker run gmail-sorter stats
 
 ## Roadmap
 
-Plan execution has been reopened for PRD gap remediation. See `PLAN.md` execution status and Task 18 for the active implementation queue.
+Plan execution is complete. See `PLAN.md` for the verification record and final remediation status.

@@ -100,6 +100,10 @@ All notable changes to this project are documented in this file.
   - Updated `gmail_sorter/llm/client.py` to enforce TLS 1.2+ for Copilot API calls via explicit SSL context minimum-version controls and custom-context validation.
   - Updated `gmail_sorter/classifier/engine.py` webhook delivery client to enforce TLS 1.2+ for outbound critical-error notifications.
   - Expanded tests in `tests/unit/llm/test_client.py` and `tests/unit/classifier/test_engine.py` for TLS baseline enforcement and HTTP client construction compatibility.
+- Added PRD gap-remediation Task 18.9 completion updates:
+  - Verified `gmail_sorter/cli.py` runtime wiring starts Health and Prometheus servers on configured `observability.health_port` and `observability.metrics_port` values.
+  - Recorded configured observability-port runtime wiring coverage in `tests/unit/test_cli.py`.
+- Reintroduced completion sentinel `.DONE` after follow-up PRD verification confirmed no remaining remediation tasks.
 
 ### Changed
 
@@ -138,6 +142,8 @@ All notable changes to this project are documented in this file.
 - Updated `README.md` to document remediation status through Task 18.7 and the next task focus.
 - Updated `PLAN.md` execution status to mark Task 18.8 complete and set Task 18.9 as the next implementation task.
 - Updated `README.md` to document remediation status through Task 18.8 and the next task focus.
+- Updated `PLAN.md` execution status to mark Task 18.9 complete, record follow-up PRD verification closure, and note completion sentinel restoration.
+- Updated `README.md` to document final PRD remediation completion status and `.DONE` restoration.
 
 ### Removed
 
