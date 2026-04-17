@@ -143,6 +143,11 @@ All notable changes to this project are documented in this file.
   - Updated `gmail_sorter/classifier/engine.py` to wrap LLM classify calls with elapsed-time measurement and record observations on `llm_latency_seconds`.
   - Ensured latency observations are emitted for both successful and failing LLM paths via `finally`-based metric recording.
   - Expanded coverage in `tests/unit/classifier/test_engine.py` and `tests/integration/test_pipeline.py` to assert histogram observation behavior.
+- Added Task 19.9 implementation for DLQ attempt tracking accuracy (ERR-004):
+  - Updated `gmail_sorter/utils/retry.py` to set retry-attempt metadata (`retry_attempts`) on retryable exceptions when retries are exhausted.
+  - Updated `gmail_sorter/llm/client.py` to propagate retry metadata into `LlmError.attempts` for persistent failure reporting.
+  - Updated `gmail_sorter/classifier/engine.py` DLQ writes to persist actual retry attempt counts from raised exceptions instead of a constant value.
+  - Expanded tests in `tests/unit/utils/test_retry.py`, `tests/unit/llm/test_client.py`, and `tests/unit/classifier/test_engine.py` for retry-attempt propagation and DLQ attempt persistence behavior.
 
 ### Changed
 
@@ -192,6 +197,7 @@ All notable changes to this project are documented in this file.
 - Updated `PLAN.md` and `README.md` to record Task 19.6 completion, current verification status, and the next remediation target (Task 19.7).
 - Updated `PLAN.md` and `README.md` to record Task 19.7 completion, current verification status, and the next remediation target (Task 19.8).
 - Updated `PLAN.md` and `README.md` to record Task 19.8 completion, current verification status, and the next remediation target (Task 19.9).
+- Updated `PLAN.md` and `README.md` to record Task 19.9 completion, current verification status, and the next remediation target (Task 19.10).
 
 ### Removed
 

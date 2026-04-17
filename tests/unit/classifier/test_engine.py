@@ -24,6 +24,14 @@ from gmail_sorter.db.repository import ClassificationRecord
 from gmail_sorter.processor.prompt_builder import PromptBuilder
 
 
+class _RetryAwareLlmError(RuntimeError):
+    """Test helper exception carrying retry-attempt metadata."""
+
+    def __init__(self, message: str, attempts: int) -> None:
+        super().__init__(message)
+        self.attempts = attempts
+
+
 def _config(dry_run: bool = False, threshold: float = 0.7) -> AppConfig:
     return AppConfig(
         gmail=GmailConfig(
@@ -615,6 +623,36 @@ async def test_classify_message_sends_critical_webhook_payload(monkeypatch: pyte
     assert metrics.classification_errors_total.by_category["llm_error"] == 1
     assert len(metrics.llm_latency_seconds.values) == 1
     assert metrics.llm_latency_seconds.values[0] >= 0.0
+
+
+@pytest.mark.asyncio
+async def test_classify_message_records_dlq_attempts_from_retry_metadata() -> None:
+    """DLQ entries should persist retry-attempt metadata when available."""
+
+    config = _config(dry_run=False)
+    gmail_client = _FakeGmailClient(_raw_message())
+    llm_client = _FailingLlmClient(_RetryAwareLlmError("llm failed", attempts=4))
+    database = _FakeDatabase()
+    metrics = _FakeMetrics()
+    checker = IdempotencyChecker(database, system_label_ids={"Label_alerts"})
+    builder = PromptBuilder(config.llm, config.categories)
+
+    engine = ClassificationEngine(
+        config=config,
+        gmail_client=gmail_client,
+        llm_client=llm_client,
+        db=database,
+        label_map={"alerts": "Label_alerts", "uncategorized": "Label_uncategorized"},
+        idempotency_checker=checker,
+        prompt_builder=builder,
+        metrics=metrics,
+    )
+
+    with pytest.raises(_RetryAwareLlmError):
+        await engine.classify_message("msg-1")
+
+    assert database.dlq_entries
+    assert getattr(database.dlq_entries[-1], "attempts", None) == 4
 
 
 def test_error_type_mapping_uses_prd_taxonomy() -> None:

@@ -52,6 +52,10 @@ def with_retry(
                         return await func(*args, **kwargs)
                     except retryable_exceptions as exc:
                         if attempt == max_retries:
+                            try:
+                                setattr(exc, "retry_attempts", attempt + 1)
+                            except Exception:  # pragma: no cover - best-effort metadata
+                                pass
                             raise
 
                         LOGGER.warning(
@@ -80,6 +84,10 @@ def with_retry(
                     return func(*args, **kwargs)
                 except retryable_exceptions as exc:
                     if attempt == max_retries:
+                        try:
+                            setattr(exc, "retry_attempts", attempt + 1)
+                        except Exception:  # pragma: no cover - best-effort metadata
+                            pass
                         raise
 
                     LOGGER.warning(

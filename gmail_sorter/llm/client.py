@@ -25,6 +25,12 @@ COPILOT_CHAT_COMPLETIONS_URL = "https://api.githubcopilot.com/chat/completions"
 class LlmError(RuntimeError):
     """Raised when an LLM API call fails permanently."""
 
+    def __init__(self, message: str, *, attempts: int = 1) -> None:
+        """Store error message and the number of request attempts used."""
+
+        super().__init__(message)
+        self.attempts = attempts
+
 
 class LlmClient:
     """Async client for GitHub Copilot chat completions."""
@@ -146,9 +152,14 @@ class LlmClient:
         try:
             return await _send()
         except (httpx.HTTPError, httpx.TimeoutException) as exc:
-            raise LlmError("LLM API request failed after retries.") from exc
+            attempts = int(getattr(exc, "retry_attempts", self._config.max_retries + 1))
+            raise LlmError("LLM API request failed after retries.", attempts=attempts) from exc
         except Exception as exc:  # pragma: no cover - defensive safeguard
-            raise LlmError("Unexpected error while calling LLM API.") from exc
+            attempts = int(getattr(exc, "retry_attempts", 1))
+            raise LlmError(
+                "Unexpected error while calling LLM API.",
+                attempts=max(1, attempts),
+            ) from exc
 
     @staticmethod
     def _extract_response_content(response: httpx.Response) -> str:

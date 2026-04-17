@@ -212,7 +212,7 @@ class ClassificationEngine:
                     message_id=current_message_id,
                     error_type=error_type,
                     error_message=str(exc) or exc.__class__.__name__,
-                    attempts=1,
+                    attempts=max(1, int(getattr(exc, "attempts", 1))),
                 )
             )
             self._increment_error_metric(error_type)

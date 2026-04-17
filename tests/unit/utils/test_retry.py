@@ -45,3 +45,17 @@ async def test_with_retry_reraises_after_retries_exhausted() -> None:
 
     with pytest.raises(ValueError, match="permanent failure"):
         await always_fails()
+
+
+@pytest.mark.asyncio
+async def test_with_retry_sets_retry_attempts_on_final_exception() -> None:
+    """Final propagated exception should include retry-attempt metadata."""
+
+    @with_retry(max_retries=2, base_delay=0.0, max_delay=0.0, jitter=False)
+    async def always_fails() -> None:
+        raise ValueError("permanent failure")
+
+    with pytest.raises(ValueError) as exc_info:
+        await always_fails()
+
+    assert getattr(exc_info.value, "retry_attempts", None) == 3

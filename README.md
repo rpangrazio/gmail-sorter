@@ -114,6 +114,11 @@ This repository currently contains:
   - Updated `gmail_sorter/classifier/engine.py` to measure elapsed LLM classify call duration and observe the value on `metrics.llm_latency_seconds`
   - Added observation handling that records latency in both success and failure paths using `finally`-based metric emission
   - Expanded unit and integration coverage in `tests/unit/classifier/test_engine.py` and `tests/integration/test_pipeline.py` for histogram observation behavior
+- Implemented secondary PRD gap-remediation Task 19.9 for DLQ attempt tracking accuracy:
+  - Updated `gmail_sorter/utils/retry.py` to annotate retry-exhausted exceptions with concrete `retry_attempts` metadata before re-raise
+  - Updated `gmail_sorter/llm/client.py` to translate retry metadata into `LlmError.attempts` for downstream persistence
+  - Updated `gmail_sorter/classifier/engine.py` DLQ writes to persist actual attempt counts from raised exceptions instead of a constant fallback value
+  - Expanded unit coverage in `tests/unit/utils/test_retry.py`, `tests/unit/llm/test_client.py`, and `tests/unit/classifier/test_engine.py` for retry-attempt propagation and DLQ attempt persistence behavior
 - Completed final integration and packaging checks with containerized verification for installability, full test suite execution, configuration validation, Docker build, and prompt rendering
 - Added packaging and test hardening updates:
   - Explicit setuptools package discovery for `gmail_sorter` in `pyproject.toml`
@@ -124,7 +129,7 @@ This repository currently contains:
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-PRD verification was re-run on April 17, 2026 after Task 18.9 validation. A subsequent code-first verification pass identified additional PRD compliance gaps (FR-004, FR-015, FR-074, FR-075, NFR-001, NFR-003, SEC-003, SEC-005, ERR-002, ERR-003, ERR-004, and PRD 14.2/14.3 operational requirements). Task 19 remediation is in progress; Tasks 19.1 through 19.8 are complete and Task 19.9 is the next planned implementation step. `.DONE` remains absent until follow-up verification confirms full closure.
+PRD verification was re-run on April 17, 2026 after Task 18.9 validation. A subsequent code-first verification pass identified additional PRD compliance gaps (FR-004, FR-015, FR-074, FR-075, NFR-001, NFR-003, SEC-003, SEC-005, ERR-002, ERR-003, ERR-004, and PRD 14.2/14.3 operational requirements). Task 19 remediation is in progress; Tasks 19.1 through 19.9 are complete and Task 19.10 is the next planned implementation step. `.DONE` remains absent until follow-up verification confirms full closure.
 
 ## Project Structure
 
@@ -277,4 +282,4 @@ docker run gmail-sorter stats
 
 ## Roadmap
 
-Plan execution is active under Task 19 secondary PRD remediation. Tasks 19.1 through 19.8 are complete; Task 19.9 (DLQ attempt tracking accuracy) is next. See `PLAN.md` for the current verification record and remaining implementation scope.
+Plan execution is active under Task 19 secondary PRD remediation. Tasks 19.1 through 19.9 are complete; Task 19.10 (runtime config env override support) is next. See `PLAN.md` for the current verification record and remaining implementation scope.

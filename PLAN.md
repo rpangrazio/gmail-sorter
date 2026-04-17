@@ -111,7 +111,11 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - Task 19.8 result: classification now records per-call LLM latency on the declared `llm_latency_seconds` histogram with `finally`-path observation so both successful and failing classify attempts are measured.
 - PRD-to-plan comparison revalidated after Task 19.8 execution; task ordering and remaining scope are still aligned to PRD requirements.
 - Local environment still lacks a Python runtime (`python: command not found`, `python3: command not found`), so Task 19.8 unit/integration tests could not be executed in-session.
-- Next task selected from plan/repository comparison: Task 19.9 — DLQ attempt tracking accuracy (ERR-004).
+- Task 19.9 — DLQ attempt tracking accuracy has been executed (`gmail_sorter/utils/retry.py`, `gmail_sorter/llm/client.py`, `gmail_sorter/classifier/engine.py`, `tests/unit/utils/test_retry.py`, `tests/unit/llm/test_client.py`, and `tests/unit/classifier/test_engine.py`).
+- Task 19.9 result: retry-exhausted exceptions now carry concrete retry-attempt metadata, `LlmClient` propagates those attempt counts through `LlmError`, and classification DLQ persistence now records real attempt counts instead of a constant sentinel value.
+- PRD-to-plan comparison revalidated after Task 19.9 execution; task ordering and remaining scope are still aligned to PRD requirements.
+- Local environment still lacks a Python runtime (`python: command not found`, `python3: command not found`), so Task 19.9 unit tests could not be executed in-session.
+- Next task selected from plan/repository comparison: Task 19.10 — Runtime config env override support (PRD 14.2).
 
 ---
 

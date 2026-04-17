@@ -86,12 +86,13 @@ async def test_classify_retries_and_raises_llm_error(monkeypatch: pytest.MonkeyP
 
     client = LlmClient(_llm_config(max_retries=2), log_prompts=False)
     try:
-        with pytest.raises(LlmError):
+        with pytest.raises(LlmError) as exc_info:
             await client.classify("sys", "user")
     finally:
         await client.close()
 
     assert route.call_count == 3
+    assert exc_info.value.attempts == 3
 
 
 def test_init_raises_system_exit_when_api_key_missing(
