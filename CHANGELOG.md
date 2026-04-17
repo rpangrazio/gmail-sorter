@@ -130,6 +130,15 @@ All notable changes to this project are documented in this file.
   - Added linked-image and tracking-style URL stripping from extracted fallback text used for prompt construction.
   - Preserved existing base64 data URI suppression behavior in `EmailParser.strip_unsafe_content`.
   - Expanded `tests/unit/utils/test_mime.py` with linked-image and tracking-pixel sanitization coverage.
+- Added Task 19.6 implementation for Google API transport TLS policy coverage (SEC-005):
+  - Updated `gmail_sorter/gmail/client.py` to perform startup-time Gmail API transport validation and reject non-HTTPS base endpoints.
+  - Updated `gmail_sorter/pubsub/listener.py` to perform startup-time Pub/Sub client transport validation and reject non-TLS endpoint configuration.
+  - Expanded tests in `tests/unit/gmail/test_client.py` and `tests/unit/pubsub/test_listener.py` for insecure transport rejection behavior.
+- Added Task 19.7 implementation for structured log context completeness (ERR-002):
+  - Updated `gmail_sorter/classifier/engine.py` sender-policy skip logging with explicit structured context fields (`operation`, `message_id`, `outcome`, `reason`).
+  - Updated `gmail_sorter/backfill/engine.py` progress logging to include structured context fields for operation, processed counts, estimate metadata, and last committed message ID.
+  - Updated `gmail_sorter/pubsub/watcher.py` watch registration/renewal logs to include structured context and taxonomy-aligned renewal failure metadata.
+  - Expanded tests in `tests/unit/classifier/test_engine.py`, `tests/unit/backfill/test_engine.py`, and `tests/unit/pubsub/test_watcher.py` to validate required context shape.
 
 ### Changed
 
@@ -176,6 +185,8 @@ All notable changes to this project are documented in this file.
 - Updated `PLAN.md` and `README.md` to record Task 19.3 completion, current verification status, and the next remediation target (Task 19.4).
 - Updated `PLAN.md` and `README.md` to record Task 19.4 completion, current verification status, and the next remediation target (Task 19.5).
 - Updated `PLAN.md` and `README.md` to record Task 19.5 completion, current verification status, and the next remediation target (Task 19.6).
+- Updated `PLAN.md` and `README.md` to record Task 19.6 completion, current verification status, and the next remediation target (Task 19.7).
+- Updated `PLAN.md` and `README.md` to record Task 19.7 completion, current verification status, and the next remediation target (Task 19.8).
 
 ### Removed
 

@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from unittest.mock import Mock
 
+import pytest
+
 from gmail_sorter.gmail.client import GmailClient
 
 
@@ -87,3 +89,14 @@ def test_get_message_logs_warning_on_rate_limit(monkeypatch, caplog) -> None:
         and "operation=get_message" in record.getMessage()
         for record in caplog.records
     )
+
+
+def test_client_rejects_non_https_transport(monkeypatch) -> None:
+    """Client should fail fast when Gmail API base URL is not HTTPS."""
+
+    service, _users = _build_service()
+    service._baseUrl = "http://gmail.googleapis.com/gmail/v1/"
+    monkeypatch.setattr("gmail_sorter.gmail.client.build", lambda *_args, **_kwargs: service)
+
+    with pytest.raises(ValueError, match="Insecure Gmail API transport"):
+        GmailClient(credentials=Mock())

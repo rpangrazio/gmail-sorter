@@ -212,6 +212,15 @@ async def test_run_logs_progress_with_explicit_total_estimate_source(
     assert any("Backfill progress: 2/unknown" in message for message in progress_logs)
     assert any("estimate_source=gmail_api_result_size_unavailable" in message for message in progress_logs)
 
+    structured = [
+        record for record in caplog.records if "Backfill progress:" in record.getMessage()
+    ]
+    assert structured
+    context = getattr(structured[-1], "context", {})
+    assert context.get("operation") == "backfill_run"
+    assert context.get("estimated_total") == "unknown"
+    assert context.get("estimate_source") == "gmail_api_result_size_unavailable"
+
 
 @pytest.mark.asyncio
 async def test_process_batch_honors_backfill_concurrency_limit() -> None:

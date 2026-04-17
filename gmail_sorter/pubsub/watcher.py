@@ -28,7 +28,16 @@ class GmailWatcher:
 
         topic_name = f"projects/{self._config.project_id}/topics/{self._config.topic}"
         response = self._gmail_client.register_watch(topic_name)
-        LOGGER.info("Registered Gmail watch for topic %s", topic_name)
+        LOGGER.info(
+            "Registered Gmail watch for topic %s",
+            topic_name,
+            extra={
+                "context": {
+                    "operation": "watch_register",
+                    "topic": topic_name,
+                }
+            },
+        )
         return response
 
     def schedule_renewal(self) -> None:
@@ -51,6 +60,15 @@ class GmailWatcher:
         try:
             self.register()
         except Exception:  # pragma: no cover - safety net logging branch
-            LOGGER.exception("Failed to renew Gmail watch registration")
+            LOGGER.exception(
+                "Failed to renew Gmail watch registration",
+                extra={
+                    "error_type": "pubsub_error",
+                    "context": {
+                        "operation": "watch_renew",
+                        "topic": f"projects/{self._config.project_id}/topics/{self._config.topic}",
+                    },
+                },
+            )
         finally:
             self.schedule_renewal()

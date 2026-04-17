@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from gmail_sorter.config.models import PubSubConfig
 from gmail_sorter.pubsub.watcher import GmailWatcher
 
@@ -49,6 +51,22 @@ def test_register_builds_project_topic_path() -> None:
     watcher.register()
 
     assert client.topic_names == ["projects/project/topics/gmail-topic"]
+
+
+def test_register_logs_structured_context(caplog) -> None:
+    """Watch registration logs should include required structured context."""
+
+    client = _FakeGmailClient()
+    watcher = _watcher(client)
+
+    with caplog.at_level(logging.INFO):
+        watcher.register()
+
+    matching = [record for record in caplog.records if "Registered Gmail watch" in record.getMessage()]
+    assert matching
+    context = getattr(matching[-1], "context", {})
+    assert context.get("operation") == "watch_register"
+    assert context.get("topic") == "projects/project/topics/gmail-topic"
 
 
 def test_schedule_renewal_sets_timer_before_seven_days(monkeypatch) -> None:

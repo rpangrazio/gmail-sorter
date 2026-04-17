@@ -387,6 +387,57 @@ async def test_classify_message_skips_blocklisted_sender_domain() -> None:
 
 
 @pytest.mark.asyncio
+async def test_classify_message_blocklist_skip_logs_structured_context(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Sender-policy skips should include structured operation context fields."""
+
+    config = _config(dry_run=False)
+    config.classification.blocklist = ["example.com"]
+
+    gmail_client = _FakeGmailClient(_raw_message())
+    llm_client = _FakeLlmClient(
+        json.dumps(
+            {
+                "category": "alerts",
+                "confidence": 0.95,
+                "reasoning": "Service notification.",
+            }
+        )
+    )
+    database = _FakeDatabase()
+    metrics = _FakeMetrics()
+    checker = IdempotencyChecker(database, system_label_ids={"Label_alerts"})
+    builder = PromptBuilder(config.llm, config.categories)
+
+    engine = ClassificationEngine(
+        config=config,
+        gmail_client=gmail_client,
+        llm_client=llm_client,
+        db=database,
+        label_map={"alerts": "Label_alerts", "uncategorized": "Label_uncategorized"},
+        idempotency_checker=checker,
+        prompt_builder=builder,
+        metrics=metrics,
+    )
+
+    with caplog.at_level("INFO"):
+        result = await engine.classify_message("msg-1")
+
+    assert result.skipped is True
+    matching = [
+        record
+        for record in caplog.records
+        if "Skipping message due to sender domain policy" in record.getMessage()
+    ]
+    assert matching
+    context = getattr(matching[-1], "context", {})
+    assert context.get("operation") == "classify_message"
+    assert context.get("message_id") == "msg-1"
+    assert context.get("outcome") == "skip"
+
+
+@pytest.mark.asyncio
 async def test_classify_message_skips_sender_not_in_allowlist() -> None:
     config = _config(dry_run=False)
     config.classification.allowlist = ["allow.example"]

@@ -101,6 +101,15 @@ This repository currently contains:
   - Added linked-image and tracking-style URL stripping in extracted fallback text to reduce tracking artifact leakage into LLM prompts
   - Preserved existing base64 data URI suppression behavior in `EmailParser.strip_unsafe_content`
   - Expanded MIME utility coverage in `tests/unit/utils/test_mime.py` for linked-image and tracking-pixel sanitization cases
+- Implemented secondary PRD gap-remediation Task 19.6 for Google transport TLS policy enforcement coverage:
+  - Added startup transport validation in `gmail_sorter/gmail/client.py` to fail fast when Gmail API base endpoint is configured with non-HTTPS transport
+  - Added startup transport validation in `gmail_sorter/pubsub/listener.py` to fail fast when Pub/Sub client endpoints indicate non-TLS transport
+  - Expanded transport-policy unit coverage in `tests/unit/gmail/test_client.py` and `tests/unit/pubsub/test_listener.py`
+- Implemented secondary PRD gap-remediation Task 19.7 for structured log context completeness:
+  - Updated sender-policy skip logging in `gmail_sorter/classifier/engine.py` to always include structured context keys (`operation`, `message_id`, `outcome`, `reason`)
+  - Updated backfill progress logging in `gmail_sorter/backfill/engine.py` to include structured progress context (`operation`, `processed`, estimate metadata, `last_message_id`)
+  - Updated watch lifecycle logging in `gmail_sorter/pubsub/watcher.py` with structured context and taxonomy-aligned renewal failure logging
+  - Expanded context-shape test coverage in `tests/unit/classifier/test_engine.py`, `tests/unit/backfill/test_engine.py`, and `tests/unit/pubsub/test_watcher.py`
 - Completed final integration and packaging checks with containerized verification for installability, full test suite execution, configuration validation, Docker build, and prompt rendering
 - Added packaging and test hardening updates:
   - Explicit setuptools package discovery for `gmail_sorter` in `pyproject.toml`
@@ -111,7 +120,7 @@ This repository currently contains:
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-PRD verification was re-run on April 17, 2026 after Task 18.9 validation. A subsequent code-first verification pass identified additional PRD compliance gaps (FR-004, FR-015, FR-074, FR-075, NFR-001, NFR-003, SEC-003, SEC-005, ERR-002, ERR-003, ERR-004, and PRD 14.2/14.3 operational requirements). Task 19 remediation is in progress; Tasks 19.1 through 19.5 are complete and Task 19.6 is the next planned implementation step. `.DONE` remains absent until follow-up verification confirms full closure.
+PRD verification was re-run on April 17, 2026 after Task 18.9 validation. A subsequent code-first verification pass identified additional PRD compliance gaps (FR-004, FR-015, FR-074, FR-075, NFR-001, NFR-003, SEC-003, SEC-005, ERR-002, ERR-003, ERR-004, and PRD 14.2/14.3 operational requirements). Task 19 remediation is in progress; Tasks 19.1 through 19.7 are complete and Task 19.8 is the next planned implementation step. `.DONE` remains absent until follow-up verification confirms full closure.
 
 ## Project Structure
 
@@ -264,4 +273,4 @@ docker run gmail-sorter stats
 
 ## Roadmap
 
-Plan execution is active under Task 19 secondary PRD remediation. Tasks 19.1 through 19.5 are complete; Task 19.6 (TLS policy coverage for Google API transport) is next. See `PLAN.md` for the current verification record and remaining implementation scope.
+Plan execution is active under Task 19 secondary PRD remediation. Tasks 19.1 through 19.7 are complete; Task 19.8 (LLM latency metric observation wiring) is next. See `PLAN.md` for the current verification record and remaining implementation scope.

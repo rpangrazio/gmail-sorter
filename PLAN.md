@@ -99,6 +99,15 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - Task 19.5 result: HTML fallback preprocessing now removes image-bearing markup before text conversion and strips linked-image/tracking-style URLs from extracted text, while preserving existing base64 data URI sanitization behavior.
 - PRD-to-plan comparison revalidated after Task 19.5 execution; task ordering and remaining scope are still aligned to PRD requirements.
 - Local environment still lacks a Python runtime (`python: command not found`, `python3: command not found`), so Task 19.5 unit tests could not be executed in-session.
+- Task 19.6 — TLS policy enforcement coverage for Google API transport has been executed (`gmail_sorter/gmail/client.py`, `gmail_sorter/pubsub/listener.py`, `tests/unit/gmail/test_client.py`, and `tests/unit/pubsub/test_listener.py`).
+- Task 19.6 result: Gmail and Pub/Sub client initialization now performs startup-time secure-transport verification and fails fast when non-TLS endpoints are detected, documenting enforcement boundaries at client initialization points while preserving existing Google-managed TLS defaults for standard endpoints.
+- PRD-to-plan comparison revalidated after Task 19.6 execution; task ordering and remaining scope are still aligned to PRD requirements.
+- Local environment still lacks `pytest` (`pytest: command not found`), so Task 19.6 unit tests could not be executed in-session.
+- Task 19.7 — Structured log context completeness has been executed (`gmail_sorter/classifier/engine.py`, `gmail_sorter/backfill/engine.py`, `gmail_sorter/pubsub/watcher.py`, `tests/unit/classifier/test_engine.py`, `tests/unit/backfill/test_engine.py`, and `tests/unit/pubsub/test_watcher.py`).
+- Task 19.7 result: watch-register, backfill-progress, and sender-policy skip logs now include explicit structured context fields (`operation` plus relevant identifiers) and unit coverage asserts representative context-shape guarantees across watcher/backfill/classifier paths.
+- PRD-to-plan comparison revalidated after Task 19.7 execution; task ordering and remaining scope are still aligned to PRD requirements.
+- Local environment still lacks `pytest` (`pytest: command not found`), so Task 19.7 unit tests could not be executed in-session.
+- Next task selected from plan/repository comparison: Task 19.8 — LLM latency metric observation wiring (ERR-003).
 
 ---
 

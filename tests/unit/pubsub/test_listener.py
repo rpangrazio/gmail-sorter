@@ -330,3 +330,25 @@ def test_listener_service_account_missing_file_raises_value_error(monkeypatch) -
 
     with pytest.raises(ValueError, match="credentials file not found"):
         _listener(config)
+
+
+def test_listener_rejects_insecure_pubsub_transport(monkeypatch) -> None:
+    """Listener should fail fast when Pub/Sub endpoint is non-TLS."""
+
+    class _InsecureSubscriberClient(_FakeSubscriberClient):
+        api_endpoint = "http://pubsub.googleapis.com"
+
+    class _InsecurePublisherClient(_FakePublisherClient):
+        api_endpoint = "http://pubsub.googleapis.com"
+
+    monkeypatch.setattr(
+        "gmail_sorter.pubsub.listener.pubsub_v1.SubscriberClient",
+        _InsecureSubscriberClient,
+    )
+    monkeypatch.setattr(
+        "gmail_sorter.pubsub.listener.pubsub_v1.PublisherClient",
+        _InsecurePublisherClient,
+    )
+
+    with pytest.raises(ValueError, match="Insecure Pub/Sub subscriber transport"):
+        _default_listener()

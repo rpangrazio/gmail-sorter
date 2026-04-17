@@ -96,7 +96,18 @@ class ClassificationEngine:
 
             allowlist, blocklist = self._sender_domain_lists()
             if not is_domain_allowed(email.sender, allowlist=allowlist, blocklist=blocklist):
-                LOGGER.info("Skipping message due to sender domain policy: %s", email.message_id)
+                LOGGER.info(
+                    "Skipping message due to sender domain policy: %s",
+                    email.message_id,
+                    extra={
+                        "context": {
+                            "message_id": email.message_id,
+                            "operation": "classify_message",
+                            "outcome": "skip",
+                            "reason": "sender_domain_policy",
+                        }
+                    },
+                )
                 return self._result(
                     message_id=email.message_id,
                     category="",
@@ -129,6 +140,13 @@ class ClassificationEngine:
                     ",".join(resolved_categories),
                     ",".join(labels_applied),
                     parsed.confidence,
+                    extra={
+                        "context": {
+                            "message_id": email.message_id,
+                            "operation": "classify_message",
+                            "outcome": "dry_run",
+                        }
+                    },
                 )
                 self._increment_metric("emails_processed_total")
                 for category in resolved_categories:

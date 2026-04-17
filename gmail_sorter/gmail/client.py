@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from urllib.parse import urlparse
 from collections.abc import Callable
 from typing import Any
 
@@ -22,7 +23,22 @@ class GmailClient:
         """Initialize Gmail API service from OAuth credentials."""
 
         self._service = build("gmail", "v1", credentials=credentials)
+        self._validate_secure_transport()
         self._dry_run = dry_run
+
+    def _validate_secure_transport(self) -> None:
+        """Enforce TLS transport policy for Gmail API HTTP communications."""
+
+        base_url = str(getattr(self._service, "_baseUrl", ""))
+        if not base_url:
+            return
+
+        parsed = urlparse(base_url)
+        if parsed.scheme and parsed.scheme.lower() != "https":
+            raise ValueError(
+                "Insecure Gmail API transport detected: expected https endpoint "
+                f"but got {base_url!r}."
+            )
 
     @staticmethod
     def _is_rate_limit_error(exc: Exception) -> bool:

@@ -41,6 +41,8 @@ class PubSubListener:
         self._credentials = self._resolve_pubsub_credentials(config)
         self._subscriber = pubsub_v1.SubscriberClient(credentials=self._credentials)
         self._publisher = pubsub_v1.PublisherClient(credentials=self._credentials)
+        self._validate_secure_transport(self._subscriber, "Pub/Sub subscriber")
+        self._validate_secure_transport(self._publisher, "Pub/Sub publisher")
         self._streaming_future: Any | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._http_server: HTTPServer | None = None
@@ -354,6 +356,35 @@ class PubSubListener:
             increment = getattr(labelled_metric, "inc", None)
             if callable(increment):
                 increment()
+
+    @staticmethod
+    def _validate_secure_transport(client: Any, client_name: str) -> None:
+        """Fail fast when Pub/Sub client endpoint indicates insecure transport."""
+
+        endpoint_candidates: list[str] = []
+
+        direct_endpoint = getattr(client, "api_endpoint", None)
+        if isinstance(direct_endpoint, str) and direct_endpoint:
+            endpoint_candidates.append(direct_endpoint)
+
+        transport = getattr(client, "transport", None) or getattr(client, "_transport", None)
+        if transport is not None:
+            host = getattr(transport, "host", None)
+            if isinstance(host, str) and host:
+                endpoint_candidates.append(host)
+
+        for endpoint in endpoint_candidates:
+            lowered = endpoint.lower()
+            if lowered.startswith("http://"):
+                raise ValueError(
+                    f"Insecure {client_name} transport detected: {endpoint!r}. "
+                    "TLS 1.2+ is required."
+                )
+            if ":80" in lowered and ":443" not in lowered:
+                raise ValueError(
+                    f"Insecure {client_name} transport detected: {endpoint!r}. "
+                    "TLS 1.2+ is required."
+                )
 
     @staticmethod
     def _resolve_pubsub_credentials(

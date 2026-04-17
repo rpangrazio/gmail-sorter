@@ -165,6 +165,15 @@ class BackfillEngine:
                         state.total_processed,
                         "unknown",
                         "gmail_api_result_size_unavailable",
+                        extra={
+                            "context": {
+                                "operation": "backfill_run",
+                                "processed": state.total_processed,
+                                "estimated_total": "unknown",
+                                "estimate_source": "gmail_api_result_size_unavailable",
+                                "last_message_id": committed_message_id,
+                            }
+                        },
                     )
                     next_progress_log += progress_interval
 
