@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import os
 import signal
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -36,10 +37,9 @@ class RuntimeOptions:
 @click.option(
     "--config",
     "config_path",
-    default="./config.yaml",
-    show_default=True,
+    default=None,
     type=click.Path(path_type=Path, dir_okay=False),
-    help="Path to the configuration file.",
+    help="Path to the configuration file (defaults to GMAIL_SORTER_CONFIG or ./config.yaml).",
 )
 @click.option(
     "--dry-run",
@@ -55,10 +55,11 @@ class RuntimeOptions:
 )
 @click.version_option(version="1.0.0")
 @click.pass_context
-def main(ctx: click.Context, config_path: Path, dry_run: bool, log_level: str | None) -> None:
+def main(ctx: click.Context, config_path: Path | None, dry_run: bool, log_level: str | None) -> None:
     """Run the gmail-sorter CLI."""
 
-    ctx.obj = RuntimeOptions(config_path=config_path, dry_run=dry_run, log_level=log_level)
+    resolved_config_path = config_path or Path(os.environ.get("GMAIL_SORTER_CONFIG", "./config.yaml"))
+    ctx.obj = RuntimeOptions(config_path=resolved_config_path, dry_run=dry_run, log_level=log_level)
 
 
 @main.command()

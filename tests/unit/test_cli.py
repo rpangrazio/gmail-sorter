@@ -8,6 +8,7 @@ from types import SimpleNamespace
 import sys
 
 from click.testing import CliRunner
+import pytest
 
 from gmail_sorter.cli import _build_engine, _load_runtime_config, _run_service, main
 
@@ -48,6 +49,44 @@ def test_validate_config_with_invalid_config_exits_one(monkeypatch) -> None:
     result = runner.invoke(main, ["validate-config"])
 
     assert result.exit_code == 1
+
+
+def test_validate_config_uses_env_default_config_path(monkeypatch) -> None:
+    """`validate-config` should default to GMAIL_SORTER_CONFIG when set."""
+
+    observed = {"path": None}
+
+    def _load_config(path):
+        observed["path"] = str(path)
+        return _fake_config()
+
+    monkeypatch.setenv("GMAIL_SORTER_CONFIG", "/tmp/from-env.yaml")
+    monkeypatch.setattr("gmail_sorter.cli.load_config", _load_config)
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["validate-config"])
+
+    assert result.exit_code == 0
+    assert observed["path"] == "/tmp/from-env.yaml"
+
+
+def test_validate_config_prefers_cli_config_over_env(monkeypatch) -> None:
+    """Global `--config` should override GMAIL_SORTER_CONFIG default."""
+
+    observed = {"path": None}
+
+    def _load_config(path):
+        observed["path"] = str(path)
+        return _fake_config()
+
+    monkeypatch.setenv("GMAIL_SORTER_CONFIG", "/tmp/from-env.yaml")
+    monkeypatch.setattr("gmail_sorter.cli.load_config", _load_config)
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["--config", "/tmp/from-cli.yaml", "validate-config"])
+
+    assert result.exit_code == 0
+    assert observed["path"] == "/tmp/from-cli.yaml"
 
 
 def test_version_flag_prints_project_version() -> None:

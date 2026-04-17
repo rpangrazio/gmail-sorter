@@ -115,7 +115,11 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - Task 19.9 result: retry-exhausted exceptions now carry concrete retry-attempt metadata, `LlmClient` propagates those attempt counts through `LlmError`, and classification DLQ persistence now records real attempt counts instead of a constant sentinel value.
 - PRD-to-plan comparison revalidated after Task 19.9 execution; task ordering and remaining scope are still aligned to PRD requirements.
 - Local environment still lacks a Python runtime (`python: command not found`, `python3: command not found`), so Task 19.9 unit tests could not be executed in-session.
-- Next task selected from plan/repository comparison: Task 19.10 — Runtime config env override support (PRD 14.2).
+- Task 19.10 — Runtime config env override support has been executed (`gmail_sorter/cli.py` and `tests/unit/test_cli.py`).
+- Task 19.10 result: CLI default config-path resolution now honors `GMAIL_SORTER_CONFIG` when `--config` is not provided, while preserving explicit CLI `--config` precedence over environment defaults.
+- PRD-to-plan comparison revalidated after Task 19.10 execution; task ordering and remaining scope are still aligned to PRD requirements.
+- Local environment still lacks a Python runtime (`python: command not found`, `python3: command not found`), so Task 19.10 unit tests could not be executed in-session.
+- Next task selected from plan/repository comparison: Task 19.11 — Verification and closure update.
 
 ---
 
