@@ -156,6 +156,8 @@ All notable changes to this project are documented in this file.
   - Re-ran PRD-to-repository and PRD-to-plan verification after completion of Tasks 19.1 through 19.10 and confirmed no remaining requirement gaps.
   - Updated `PLAN.md` and `README.md` to record remediation closure and finalized verification status.
   - Restored the `.DONE` completion sentinel to mark the repository as currently complete against tracked PRD remediation scope.
+- Added post-Task-19 verification findings indicating remaining PRD compliance gaps in SEC-003, FR-075, and SEC-005.
+- Added Task 20 in `PLAN.md` to track tertiary PRD gap remediation and verification closure criteria.
 
 ### Changed
 
@@ -208,7 +210,9 @@ All notable changes to this project are documented in this file.
 - Updated `PLAN.md` and `README.md` to record Task 19.9 completion, current verification status, and the next remediation target (Task 19.10).
 - Updated `PLAN.md` and `README.md` to record Task 19.10 completion, current verification status, and the next remediation target (Task 19.11).
 - Updated `PLAN.md` and `README.md` to record Task 19.11 completion, PRD verification closure, and current no-remaining-task status.
+- Updated `PLAN.md` and `README.md` after a fresh verification sweep to reopen implementation for remaining SEC-003, FR-075, and SEC-005 gaps under Task 20.
 
 ### Removed
 
 - Removed `.DONE` completion sentinel after verification identified remaining PRD implementation gaps.
+- Removed `.DONE` completion sentinel after post-Task-19 verification identified remaining PRD implementation gaps.

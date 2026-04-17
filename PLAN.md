@@ -122,6 +122,10 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - Task 19.11 — Verification and closure update has been executed (`PLAN.md`, `README.md`, `CHANGELOG.md`, and `.DONE`).
 - Task 19.11 result: PRD-to-plan verification was rerun after Tasks 19.1–19.10 and the repository state remains aligned with PRD v1 requirements; no additional implementation tasks were identified.
 - Completion sentinel `.DONE` has been restored after verification confirmed no remaining PRD remediation work.
+- Fresh PRD verification sweep completed on April 17, 2026 after Task 19 closure.
+- Verification found remaining requirement gaps in current implementation: SEC-003 (attachment/plain-text tracking artifact sanitization), FR-075 (backfill processed/total progress accounting), and SEC-005 (explicit TLS-version enforcement boundary for Google API transports).
+- Plan reopened with Task 20 — Tertiary PRD Gap Remediation.
+- Completion sentinel `.DONE` removed so implementation loop resumes.
 
 ---
 
@@ -1216,6 +1220,49 @@ After Tasks 19.1–19.10 are implemented:
 - All newly identified requirement gaps are closed with corresponding tests.
 - Verification evidence is recorded in project documentation.
 - Completion sentinel restoration is conditioned on verified full PRD compliance.
+
+---
+
+## Task 20 — Tertiary PRD Gap Remediation
+
+**Goal:** Close the remaining PRD compliance gaps identified in the post-Task-19 verification sweep.
+
+### 20.1 MIME sanitization hardening for attachments and plain-text tracking artifacts (SEC-003)
+
+Update `gmail_sorter/utils/mime.py` and `gmail_sorter/processor/email_parser.py` to ensure prompt input excludes disallowed content for both multipart and plain-text paths:
+
+- Ignore MIME parts that represent attachments (for example, parts with `filename` or attachment disposition) when selecting body content.
+- Apply linked-image and tracking URL sanitization to plain-text extraction output in addition to HTML fallback output.
+- Expand unit coverage in `tests/unit/utils/test_mime.py` and `tests/unit/processor/test_email_parser.py` for attachment exclusion and plain-text tracking artifact stripping.
+
+### 20.2 Backfill processed/total progress accounting (FR-075)
+
+Update `gmail_sorter/gmail/client.py` and `gmail_sorter/backfill/engine.py` to emit PRD-aligned progress logs:
+
+- Surface Gmail mailbox total estimate (`resultSizeEstimate`) from list responses and propagate it through backfill pagination state.
+- Emit progress logs in `processed/total` form when total is available, while retaining explicit estimate-source context when unavailable.
+- Expand tests in `tests/unit/gmail/test_client.py` and `tests/unit/backfill/test_engine.py` for total-estimate propagation and progress log formatting behavior.
+
+### 20.3 TLS 1.2+ enforcement boundary for Google transports (SEC-005)
+
+Strengthen and document Google-client transport policy checks in `gmail_sorter/gmail/client.py`, `gmail_sorter/pubsub/listener.py`, and repository docs:
+
+- Add startup validation that rejects explicitly configured insecure transport endpoints and documents how TLS minimum versions are enforced by Google client libraries when endpoints remain default.
+- Ensure policy validation errors are descriptive and actionable.
+- Add/expand unit tests in `tests/unit/gmail/test_client.py` and `tests/unit/pubsub/test_listener.py` for secure/insecure endpoint validation paths.
+
+### 20.4 Verification and closure update
+
+After Tasks 20.1–20.3 are implemented:
+
+- Re-run PRD-to-repository verification and record findings in `README.md`, `CHANGELOG.md`, and `PLAN.md`.
+- Reintroduce `.DONE` only if all remaining PRD requirements are verified as satisfied.
+
+**Acceptance criteria:**
+
+- All Task 20 gaps are closed with corresponding tests.
+- Verification evidence is recorded in project documentation.
+- Completion sentinel restoration is conditioned on a successful verification sweep.
 
 ---
 
