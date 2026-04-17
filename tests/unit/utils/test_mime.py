@@ -62,3 +62,56 @@ def test_strip_unsafe_content_removes_base64_data_uris() -> None:
     assert "data:image/png;base64" not in sanitized
     assert "before" in sanitized
     assert "after" in sanitized
+
+
+def test_extract_body_html_fallback_strips_linked_images() -> None:
+    """HTML fallback text should not include linked-image URLs."""
+
+    payload = {
+        "mimeType": "multipart/alternative",
+        "parts": [
+            {
+                "mimeType": "text/html",
+                "body": {
+                    "data": _b64(
+                        "<html><body>"
+                        "Hello"
+                        "<img src='https://cdn.example.com/banner.png'/>"
+                        " world"
+                        "</body></html>"
+                    )
+                },
+            }
+        ],
+    }
+
+    body = EmailParser.extract_body(payload)
+    assert "Hello" in body
+    assert "world" in body
+    assert "banner.png" not in body
+
+
+def test_extract_body_html_fallback_strips_tracking_pixel_urls() -> None:
+    """HTML fallback text should remove tracking/pixel links."""
+
+    payload = {
+        "mimeType": "multipart/alternative",
+        "parts": [
+            {
+                "mimeType": "text/html",
+                "body": {
+                    "data": _b64(
+                        "<html><body>"
+                        "Open details at "
+                        "https://mail.example.com/pixel/open?id=12345 "
+                        "for your account"
+                        "</body></html>"
+                    )
+                },
+            }
+        ],
+    }
+
+    body = EmailParser.extract_body(payload)
+    assert "for your account" in body
+    assert "pixel/open" not in body

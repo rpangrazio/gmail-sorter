@@ -9,6 +9,14 @@ from typing import Any
 from bs4 import BeautifulSoup
 
 _DATA_URI_PATTERN = re.compile(r"data:[^;]+;base64,[A-Za-z0-9+/=]+")
+_IMAGE_URL_PATTERN = re.compile(
+    r"https?://[^\s]+\.(?:png|jpe?g|gif|webp|bmp|svg)(?:\?[^\s]*)?",
+    re.IGNORECASE,
+)
+_TRACKING_URL_PATTERN = re.compile(
+    r"https?://[^\s]*(?:track|tracking|beacon|pixel|open)[^\s]*",
+    re.IGNORECASE,
+)
 
 
 class EmailParser:
@@ -56,13 +64,40 @@ class EmailParser:
     def html_to_text(html: str) -> str:
         """Convert HTML content to plain text."""
 
-        return BeautifulSoup(html, "lxml").get_text(separator=" ")
+        soup = BeautifulSoup(html, "lxml")
+
+        for tag_name in (
+            "script",
+            "style",
+            "head",
+            "title",
+            "meta",
+            "link",
+            "img",
+            "picture",
+            "source",
+            "svg",
+            "canvas",
+            "noscript",
+        ):
+            for tag in soup.find_all(tag_name):
+                tag.decompose()
+
+        text = soup.get_text(separator=" ")
+        return EmailParser._strip_tracking_urls(text)
 
     @staticmethod
     def strip_unsafe_content(text: str) -> str:
         """Remove base64 data URIs from text content."""
 
         return _DATA_URI_PATTERN.sub("", text)
+
+    @staticmethod
+    def _strip_tracking_urls(text: str) -> str:
+        """Remove linked-image and tracking-style URLs from extracted text."""
+
+        without_image_urls = _IMAGE_URL_PATTERN.sub("", text)
+        return _TRACKING_URL_PATTERN.sub("", without_image_urls)
 
     @staticmethod
     def _find_part(payload: dict[str, Any], mime_type: str) -> dict[str, Any] | None:

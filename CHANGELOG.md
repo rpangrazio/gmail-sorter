@@ -125,6 +125,11 @@ All notable changes to this project are documented in this file.
   - Updated `gmail_sorter/cli.py` service runtime loop to treat listener failures as transient, stop and recreate the listener, and retry startup with bounded exponential backoff.
   - Added runtime health-state transitions so listener failures mark `/health` unhealthy and successful listener restarts restore healthy status.
   - Expanded CLI runtime tests in `tests/unit/test_cli.py` to validate reconnect behavior and health transition signaling.
+- Added Task 19.5 implementation for prompt-input sanitization hardening (SEC-003):
+  - Updated `gmail_sorter/utils/mime.py` HTML fallback conversion to remove image-bearing and non-content tags before text extraction.
+  - Added linked-image and tracking-style URL stripping from extracted fallback text used for prompt construction.
+  - Preserved existing base64 data URI suppression behavior in `EmailParser.strip_unsafe_content`.
+  - Expanded `tests/unit/utils/test_mime.py` with linked-image and tracking-pixel sanitization coverage.
 
 ### Changed
 
@@ -170,6 +175,7 @@ All notable changes to this project are documented in this file.
 - Updated `PLAN.md` and `README.md` to record Task 19.2 completion, current verification status, and the next remediation target (Task 19.3).
 - Updated `PLAN.md` and `README.md` to record Task 19.3 completion, current verification status, and the next remediation target (Task 19.4).
 - Updated `PLAN.md` and `README.md` to record Task 19.4 completion, current verification status, and the next remediation target (Task 19.5).
+- Updated `PLAN.md` and `README.md` to record Task 19.5 completion, current verification status, and the next remediation target (Task 19.6).
 
 ### Removed
 
