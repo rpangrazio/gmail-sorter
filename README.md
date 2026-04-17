@@ -68,6 +68,11 @@ This repository currently contains:
   - Updated Pub/Sub failure handling in `gmail_sorter/pubsub/listener.py` to emit explicit `pubsub_error` logs and increment taxonomy-aligned error metrics
   - Updated structured logging in `gmail_sorter/observability/logging.py` so `error_type` is always normalized to the required PRD set
   - Expanded unit coverage in `tests/unit/classifier/test_engine.py`, `tests/unit/pubsub/test_listener.py`, `tests/unit/observability/test_logging.py`, `tests/unit/observability/test_error_taxonomy.py`, and `tests/unit/config/test_loader.py`
+- Implemented PRD gap-remediation Task 18.8 for TLS 1.2+ enforcement on outbound HTTP clients:
+  - Updated `gmail_sorter/llm/client.py` to enforce TLS 1.2+ on Copilot API calls with explicit SSL context minimum-version controls
+  - Added injected TLS-context validation in `LlmClient` so insecure custom contexts (minimum version below TLS 1.2) are rejected at initialization
+  - Updated webhook delivery HTTP client wiring in `gmail_sorter/classifier/engine.py` to enforce TLS 1.2+ for outbound critical-error notifications
+  - Expanded unit coverage in `tests/unit/llm/test_client.py` and `tests/unit/classifier/test_engine.py` for TLS baseline enforcement and updated HTTP client construction
 - Completed final integration and packaging checks with containerized verification for installability, full test suite execution, configuration validation, Docker build, and prompt rendering
 - Added packaging and test hardening updates:
   - Explicit setuptools package discovery for `gmail_sorter` in `pyproject.toml`
@@ -78,7 +83,7 @@ This repository currently contains:
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-PRD verification was re-run on April 15, 2026 and found unresolved requirement gaps. Implementation is in active remediation mode, tracked in `PLAN.md` Task 18. Tasks 18.1 through 18.7 are complete and Task 18.8 is next.
+PRD verification was re-run on April 15, 2026 and found unresolved requirement gaps. Implementation is in active remediation mode, tracked in `PLAN.md` Task 18. Tasks 18.1 through 18.8 are complete and Task 18.9 is next.
 
 ## Project Structure
 

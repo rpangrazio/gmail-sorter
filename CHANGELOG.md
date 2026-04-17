@@ -96,6 +96,10 @@ All notable changes to this project are documented in this file.
   - Updated `gmail_sorter/pubsub/listener.py` to label Pub/Sub failures as `pubsub_error` in logs and increment taxonomy-aligned error metrics.
   - Updated `gmail_sorter/observability/logging.py` to always normalize `error_type` into the required taxonomy labels.
   - Expanded tests in `tests/unit/classifier/test_engine.py`, `tests/unit/pubsub/test_listener.py`, `tests/unit/observability/test_logging.py`, `tests/unit/observability/test_error_taxonomy.py`, and `tests/unit/config/test_loader.py` for taxonomy enforcement and critical webhook payload emission.
+- Added PRD gap-remediation Task 18.8 implementation updates:
+  - Updated `gmail_sorter/llm/client.py` to enforce TLS 1.2+ for Copilot API calls via explicit SSL context minimum-version controls and custom-context validation.
+  - Updated `gmail_sorter/classifier/engine.py` webhook delivery client to enforce TLS 1.2+ for outbound critical-error notifications.
+  - Expanded tests in `tests/unit/llm/test_client.py` and `tests/unit/classifier/test_engine.py` for TLS baseline enforcement and HTTP client construction compatibility.
 
 ### Changed
 
@@ -132,6 +136,8 @@ All notable changes to this project are documented in this file.
 - Updated `README.md` to document remediation status through Task 18.6 and the next task focus.
 - Updated `PLAN.md` execution status to mark Task 18.7 complete and set Task 18.8 as the next implementation task.
 - Updated `README.md` to document remediation status through Task 18.7 and the next task focus.
+- Updated `PLAN.md` execution status to mark Task 18.8 complete and set Task 18.9 as the next implementation task.
+- Updated `README.md` to document remediation status through Task 18.8 and the next task focus.
 
 ### Removed
 

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
+import ssl
 from typing import Any
 
 import httpx
@@ -28,7 +29,12 @@ class LlmError(RuntimeError):
 class LlmClient:
     """Async client for GitHub Copilot chat completions."""
 
-    def __init__(self, config: LlmConfig, log_prompts: bool = False) -> None:
+    def __init__(
+        self,
+        config: LlmConfig,
+        log_prompts: bool = False,
+        tls_context: ssl.SSLContext | None = None,
+    ) -> None:
         """Initialize HTTP client and resolve API key from environment."""
 
         self._config = config
@@ -41,10 +47,36 @@ class LlmClient:
                 f"Required environment variable {config.api_key_env!r} is not set."
             ) from exc
 
+        self._tls_context = self._build_tls_context(tls_context)
         self._http_client = httpx.AsyncClient(
             http2=True,
             timeout=config.timeout_seconds,
+            verify=self._tls_context,
         )
+
+    @staticmethod
+    def _build_tls_context(tls_context: ssl.SSLContext | None = None) -> ssl.SSLContext:
+        """Create or validate an SSL context enforcing TLS 1.2+."""
+
+        context = tls_context or ssl.create_default_context()
+        minimum_version = getattr(context, "minimum_version", None)
+        maximum_version = getattr(context, "maximum_version", None)
+
+        if tls_context is not None:
+            if minimum_version is None or minimum_version < ssl.TLSVersion.TLSv1_2:
+                raise ValueError("TLS minimum_version must be TLSv1_2 or higher.")
+            if (
+                maximum_version is not None
+                and maximum_version is not ssl.TLSVersion.MAXIMUM_SUPPORTED
+                and maximum_version < ssl.TLSVersion.TLSv1_2
+            ):
+                raise ValueError("TLS maximum_version must allow TLSv1_2 or higher.")
+            return context
+
+        if minimum_version is None or minimum_version < ssl.TLSVersion.TLSv1_2:
+            context.minimum_version = ssl.TLSVersion.TLSv1_2
+
+        return context
 
     async def classify(self, system_prompt: str, user_prompt: str) -> LlmResponse:
         """Send prompts to Copilot and return parsed classification output."""

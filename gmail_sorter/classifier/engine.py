@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import ssl
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -320,8 +321,12 @@ class ClassificationEngine:
             "description": description,
         }
 
+        tls_context = ssl.create_default_context()
+        if tls_context.minimum_version < ssl.TLSVersion.TLSv1_2:
+            tls_context.minimum_version = ssl.TLSVersion.TLSv1_2
+
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            async with httpx.AsyncClient(timeout=5.0, verify=tls_context) as client:
                 response = await client.post(webhook_url, json=payload)
                 response.raise_for_status()
         except httpx.HTTPError:

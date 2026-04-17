@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import ssl
 
 import httpx
 import pytest
@@ -102,6 +103,26 @@ def test_init_raises_system_exit_when_api_key_missing(
 
     with pytest.raises(SystemExit):
         LlmClient(_llm_config(), log_prompts=False)
+
+
+def test_init_enforces_tls_1_2_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Default TLS context should enforce a minimum of TLS 1.2."""
+
+    monkeypatch.setenv("GITHUB_COPILOT_API_KEY", "test-key")
+
+    context = LlmClient._build_tls_context()
+    assert context.minimum_version >= ssl.TLSVersion.TLSv1_2
+
+
+def test_init_rejects_insecure_custom_tls_context(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Explicit insecure TLS contexts should be rejected during initialization."""
+
+    monkeypatch.setenv("GITHUB_COPILOT_API_KEY", "test-key")
+    insecure_context = ssl.create_default_context()
+    insecure_context.minimum_version = ssl.TLSVersion.TLSv1
+
+    with pytest.raises(ValueError, match="minimum_version"):
+        LlmClient(_llm_config(), log_prompts=False, tls_context=insecure_context)
 
 
 @pytest.mark.asyncio

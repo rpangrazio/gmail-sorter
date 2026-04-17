@@ -67,7 +67,11 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - Task 18.7 result: centralized taxonomy normalization now enforces `{auth_error, api_error, llm_error, config_error, pubsub_error}` across structured logs and error metrics, classifier failures now emit taxonomy-tagged logs and optional critical webhook payloads (`error_type`, `message_id`, `timestamp`, `description`), and Pub/Sub failures now increment taxonomy-aligned error metrics with explicit `pubsub_error` logging.
 - PRD-to-plan comparison revalidated after Task 18.7 execution; task ordering and remaining scope are still aligned to PRD requirements.
 - Local environment still lacks `pytest` (`pytest: command not found`), so Task 18.7 unit tests could not be executed in-session.
-- **Next task to execute:** Task 18.8 — Enforce TLS 1.2+ for outbound HTTP clients.
+- Task 18.8 — Enforce TLS 1.2+ for outbound HTTP clients has been executed (`gmail_sorter/llm/client.py`, `gmail_sorter/classifier/engine.py`, `tests/unit/llm/test_client.py`, and `tests/unit/classifier/test_engine.py`).
+- Task 18.8 result: all non-Google outbound `httpx.AsyncClient` call sites now enforce TLS 1.2+ via explicit SSL context minimum-version controls; `LlmClient` now validates injected TLS contexts and rejects insecure minimum versions.
+- PRD-to-plan comparison revalidated after Task 18.8 execution; task ordering and remaining scope are still aligned to PRD requirements.
+- Local environment still lacks a Python runtime (`python: command not found`, `python3: command not found`), so Task 18.8 unit tests could not be executed in-session.
+- **Next task to execute:** Task 18.9 — Health and metrics ports from configuration.
 
 ---
 
