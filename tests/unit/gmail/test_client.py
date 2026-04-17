@@ -2,9 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 from unittest.mock import Mock
 
 from gmail_sorter.gmail.client import GmailClient
+
+
+class _RateLimitError(Exception):
+    """Test helper exception representing HTTP 429 responses."""
+
+    status_code = 429
 
 
 def _build_service() -> tuple[Mock, Mock]:
@@ -57,3 +64,26 @@ def test_apply_label_archive_removes_inbox(monkeypatch) -> None:
     call_kwargs = users.messages.return_value.modify.call_args.kwargs
     assert call_kwargs["body"]["addLabelIds"] == ["LBL-1"]
     assert call_kwargs["body"]["removeLabelIds"] == ["INBOX"]
+
+
+def test_get_message_logs_warning_on_rate_limit(monkeypatch, caplog) -> None:
+    """Rate-limited Gmail calls should emit warning logs with operation context."""
+
+    service, users = _build_service()
+    execute = users.messages.return_value.get.return_value.execute
+    execute.side_effect = [_RateLimitError("Too many requests"), {"id": "msg-1"}]
+
+    monkeypatch.setattr("gmail_sorter.gmail.client.build", lambda *_args, **_kwargs: service)
+    monkeypatch.setattr("gmail_sorter.utils.retry.time.sleep", lambda _delay: None)
+
+    client = GmailClient(credentials=Mock(), dry_run=False)
+
+    with caplog.at_level(logging.WARNING):
+        message = client.get_message("msg-1")
+
+    assert message["id"] == "msg-1"
+    assert any(
+        "Gmail API rate limit encountered" in record.getMessage()
+        and "operation=get_message" in record.getMessage()
+        for record in caplog.records
+    )

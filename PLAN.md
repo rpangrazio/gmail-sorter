@@ -83,6 +83,10 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - Task 19.1 result: typed Pub/Sub auth-mode and credential-path controls were added and validated; Pub/Sub listener now loads explicit service-account credentials when configured and fails fast with descriptive startup errors for missing/invalid credential files.
 - PRD-to-plan comparison revalidated after Task 19.1 execution; task ordering and remaining scope are still aligned to PRD requirements.
 - Local environment still lacks a Python runtime (`python: command not found`, `python3: command not found`), so Task 19.1 unit tests could not be executed in-session.
+- Task 19.2 — Rate-limit specific retry observability has been executed (`gmail_sorter/gmail/client.py` and `tests/unit/gmail/test_client.py`).
+- Task 19.2 result: Gmail API call paths now detect rate-limit failures (HTTP 429 and rate-limit reason payloads) and emit `WARNING` logs with operation context before retry backoff continues, preserving existing exponential backoff and jitter behavior.
+- PRD-to-plan comparison revalidated after Task 19.2 execution; task ordering and remaining scope are still aligned to PRD requirements.
+- Local environment still lacks `pytest` (`pytest: command not found`), so Task 19.2 unit tests could not be executed in-session.
 
 ---
 

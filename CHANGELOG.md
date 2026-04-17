@@ -112,6 +112,10 @@ All notable changes to this project are documented in this file.
   - Updated `gmail_sorter/pubsub/listener.py` to load service-account credentials when configured and pass them explicitly to `PublisherClient`/`SubscriberClient`.
   - Added fail-fast startup validation/error paths for missing or invalid Pub/Sub credential files in service-account mode.
   - Expanded unit coverage in `tests/unit/config/test_models.py`, `tests/unit/config/test_loader.py`, and `tests/unit/pubsub/test_listener.py` for service-account config validation, loader parsing, and listener credential wiring/failure behavior.
+- Added Task 19.2 implementation for Gmail rate-limit retry observability (FR-015):
+  - Updated `gmail_sorter/gmail/client.py` to detect rate-limit failures (HTTP 429 and Gmail rate-limit error payloads) in Gmail API operations and emit `WARNING` logs with operation context before retries.
+  - Preserved existing exponential backoff with jitter behavior by keeping retry handling in `gmail_sorter/utils/retry.py`.
+  - Expanded `tests/unit/gmail/test_client.py` with coverage validating warning-log emission during rate-limit retries.
 
 ### Changed
 
@@ -154,6 +158,7 @@ All notable changes to this project are documented in this file.
 - Updated `README.md` to document final PRD remediation completion status and `.DONE` restoration.
 - Updated `PLAN.md` and `README.md` after a fresh code-first PRD verification pass to reopen remediation work under Task 19 and record newly identified requirement gaps.
 - Updated `PLAN.md` and `README.md` to record Task 19.1 completion, current verification status, and the next remediation target (Task 19.2).
+- Updated `PLAN.md` and `README.md` to record Task 19.2 completion, current verification status, and the next remediation target (Task 19.3).
 
 ### Removed
 

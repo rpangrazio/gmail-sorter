@@ -82,6 +82,10 @@ This repository currently contains:
   - Updated `gmail_sorter/pubsub/listener.py` to initialize publisher/subscriber clients with explicit service-account credentials when configured
   - Added startup-time validation failures for missing/invalid service-account credentials with descriptive error messages
   - Expanded unit coverage in `tests/unit/config/test_models.py`, `tests/unit/config/test_loader.py`, and `tests/unit/pubsub/test_listener.py` for service-account config parsing and listener credential wiring/failure behavior
+- Implemented secondary PRD gap-remediation Task 19.2 for Gmail rate-limit retry observability:
+  - Updated `gmail_sorter/gmail/client.py` to detect Gmail rate-limit failures (HTTP 429 and rate-limit reason payloads) across API operations and emit `WARNING` logs with operation context
+  - Preserved exponential backoff with jitter by keeping retry behavior centralized in `gmail_sorter/utils/retry.py`
+  - Expanded unit coverage in `tests/unit/gmail/test_client.py` for rate-limit warning emission during retried Gmail calls
 - Completed final integration and packaging checks with containerized verification for installability, full test suite execution, configuration validation, Docker build, and prompt rendering
 - Added packaging and test hardening updates:
   - Explicit setuptools package discovery for `gmail_sorter` in `pyproject.toml`
@@ -92,7 +96,7 @@ This repository currently contains:
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-PRD verification was re-run on April 17, 2026 after Task 18.9 validation. A subsequent code-first verification pass identified additional PRD compliance gaps (FR-004, FR-015, FR-074, FR-075, NFR-001, NFR-003, SEC-003, SEC-005, ERR-002, ERR-003, ERR-004, and PRD 14.2/14.3 operational requirements). Task 19 remediation is in progress; Task 19.1 is complete and Task 19.2 is the next planned implementation step. `.DONE` remains absent until follow-up verification confirms full closure.
+PRD verification was re-run on April 17, 2026 after Task 18.9 validation. A subsequent code-first verification pass identified additional PRD compliance gaps (FR-004, FR-015, FR-074, FR-075, NFR-001, NFR-003, SEC-003, SEC-005, ERR-002, ERR-003, ERR-004, and PRD 14.2/14.3 operational requirements). Task 19 remediation is in progress; Tasks 19.1 and 19.2 are complete and Task 19.3 is the next planned implementation step. `.DONE` remains absent until follow-up verification confirms full closure.
 
 ## Project Structure
 
@@ -245,4 +249,4 @@ docker run gmail-sorter stats
 
 ## Roadmap
 
-Plan execution is active under Task 19 secondary PRD remediation. Task 19.1 is complete; Task 19.2 (rate-limit retry observability) is next. See `PLAN.md` for the current verification record and remaining implementation scope.
+Plan execution is active under Task 19 secondary PRD remediation. Tasks 19.1 and 19.2 are complete; Task 19.3 (backfill resume semantics and progress accounting) is next. See `PLAN.md` for the current verification record and remaining implementation scope.
