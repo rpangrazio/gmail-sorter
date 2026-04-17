@@ -104,6 +104,8 @@ All notable changes to this project are documented in this file.
   - Verified `gmail_sorter/cli.py` runtime wiring starts Health and Prometheus servers on configured `observability.health_port` and `observability.metrics_port` values.
   - Recorded configured observability-port runtime wiring coverage in `tests/unit/test_cli.py`.
 - Reintroduced completion sentinel `.DONE` after follow-up PRD verification confirmed no remaining remediation tasks.
+- Added secondary PRD verification findings showing remaining implementation gaps after the prior closure check (FR-004, FR-015, FR-074, FR-075, NFR-001, NFR-003, SEC-003, SEC-005, ERR-002, ERR-003, ERR-004, and PRD 14.2/14.3 operational requirements).
+- Added Task 19 in `PLAN.md` to track secondary PRD gap remediation and verification closure criteria.
 
 ### Changed
 
@@ -144,6 +146,7 @@ All notable changes to this project are documented in this file.
 - Updated `README.md` to document remediation status through Task 18.8 and the next task focus.
 - Updated `PLAN.md` execution status to mark Task 18.9 complete, record follow-up PRD verification closure, and note completion sentinel restoration.
 - Updated `README.md` to document final PRD remediation completion status and `.DONE` restoration.
+- Updated `PLAN.md` and `README.md` after a fresh code-first PRD verification pass to reopen remediation work under Task 19 and record newly identified requirement gaps.
 
 ### Removed
 

@@ -75,6 +75,10 @@ This plan is structured as a series of discrete, ordered tasks for an LLM coding
 - Task 18.9 result: runtime observability startup now uses `config.observability.health_port` and `config.observability.metrics_port` for Health and Prometheus endpoints, and CLI wiring tests validate configured-port usage.
 - Follow-up PRD verification sweep completed on April 17, 2026; previously tracked gap set is closed and no additional implementation tasks remain in this plan.
 - Completion sentinel `.DONE` has been reintroduced after verification confirmed no remaining PRD remediation tasks.
+- Fresh PRD verification sweep completed on April 17, 2026 against repository implementation details (code-first audit).
+- Verification found additional unmet or partial requirements not captured in prior remediation closure: FR-004, FR-015, FR-074, FR-075, NFR-001, NFR-003, SEC-003, SEC-005, ERR-002, ERR-003, ERR-004, and PRD 14.2/14.3 operational requirements.
+- Plan reopened with Task 19 — Secondary PRD Gap Remediation.
+- Completion sentinel `.DONE` removed so implementation loop resumes.
 
 ---
 
@@ -1066,6 +1070,109 @@ Add CLI runtime wiring tests validating configured port usage.
 - PRD gaps listed in Execution Status are all addressed with passing unit/integration coverage.
 - `README.md`, `CHANGELOG.md`, and this plan reflect the remediated verification status.
 - Completion sentinel may be reintroduced only after a follow-up verification confirms full PRD compliance.
+
+---
+
+## Task 19 — Secondary PRD Gap Remediation
+
+**Goal:** Address the newly identified PRD compliance gaps from the April 17, 2026 code-first verification sweep and re-establish full PRD alignment.
+
+### 19.1 Explicit Pub/Sub service-account credential support (FR-004)
+
+Update configuration and Pub/Sub client wiring to explicitly support service-account authentication for topic/subscription management:
+
+- Add typed config support for optional Pub/Sub credentials path or explicit service-account mode.
+- Initialize `PublisherClient` and `SubscriberClient` with explicit credentials when configured.
+- Add startup-time validation/error messaging when configured credentials are missing or invalid.
+- Add unit tests in `tests/unit/pubsub/` and config tests in `tests/unit/config/` for explicit credential-path behavior.
+
+### 19.2 Rate-limit specific retry observability (FR-015)
+
+Enhance retry/Gmail API interaction logging to explicitly capture Gmail rate-limit events:
+
+- Detect 429/rate-limit responses/exceptions in Gmail API call paths.
+- Emit `WARNING` logs with operation context when rate limits are encountered.
+- Preserve exponential backoff with jitter behavior.
+- Add unit tests validating rate-limit warning emission.
+
+### 19.3 Backfill resume semantics and progress accounting (FR-074, FR-075)
+
+Update backfill state handling to match PRD semantics:
+
+- Resume from persisted `last_message_id` semantics in addition to page token tracking.
+- Ensure interrupted runs continue from the exact last processed point without reclassification drift.
+- Improve progress logging to report `processed/total` (or explicit total estimate source) at configured intervals.
+- Add/expand tests in `tests/unit/backfill/test_engine.py` and integration coverage for resume/progress behavior.
+
+### 19.4 Listener resiliency and reconnect loop (NFR-003, PRD 14.3 runtime health)
+
+Implement transient-failure reconnection behavior and health-state transitions:
+
+- Add automatic reconnect/retry strategy for Pub/Sub listener failures in `run` mode.
+- Set health endpoint state to unhealthy on listener connectivity loss/error and restore to healthy on recovery.
+- Ensure service loop does not exit permanently on transient listener failures.
+- Add unit tests for reconnect and health transition behavior.
+
+### 19.5 Strengthen prompt-input sanitization (SEC-003)
+
+Harden email body preprocessing before LLM submission:
+
+- Ensure linked image/tracking pixel artifacts are stripped or neutralized in HTML fallback processing.
+- Preserve existing attachment/base64-data suppression guarantees.
+- Add MIME utility tests for tracking-pixel and linked-image stripping cases.
+
+### 19.6 TLS policy enforcement coverage for Google API transport (SEC-005)
+
+Document and enforce TLS >= 1.2 posture for Gmail and Pub/Sub transports where controllable:
+
+- Add explicit transport/TLS policy handling for Google client initialization where feasible.
+- If transport libraries enforce TLS implicitly, add startup verification and documentation explaining enforcement boundaries.
+- Add tests covering configured transport policy behavior and failure paths.
+
+### 19.7 Structured log context completeness (ERR-002)
+
+Ensure required context fields are consistently present in emitted structured logs:
+
+- Standardize inclusion of operation context and relevant IDs on pipeline logs.
+- Ensure logs emitted from watch/listener/backfill/classifier paths carry non-empty required context keys.
+- Add logging tests validating required context shape across representative events.
+
+### 19.8 LLM latency metric observation wiring (ERR-003)
+
+Connect the declared `llm_latency_seconds` histogram to live classification calls:
+
+- Observe elapsed LLM request duration for each classification attempt.
+- Record latency for success and failure paths where practical.
+- Add unit/integration tests asserting histogram observation invocations.
+
+### 19.9 DLQ attempt tracking accuracy (ERR-004)
+
+Persist accurate retry-attempt counts for failed classifications:
+
+- Track retry attempts used by LLM/API call path.
+- Persist real attempt count in DLQ rows instead of a constant value.
+- Add tests confirming DLQ `attempts` reflects actual retry exhaustion behavior.
+
+### 19.10 Runtime config env override support (PRD 14.2)
+
+Support `GMAIL_SORTER_CONFIG` environment override for CLI runtime defaults:
+
+- Resolve default config path from `GMAIL_SORTER_CONFIG` when `--config` is not provided.
+- Preserve explicit CLI flag precedence over environment defaults.
+- Add CLI tests for env-var defaulting and precedence.
+
+### 19.11 Verification and closure update
+
+After Tasks 19.1–19.10 are implemented:
+
+- Re-run PRD-to-repository verification and document results in `README.md`, `CHANGELOG.md`, and `PLAN.md`.
+- Reintroduce `.DONE` only if all remaining PRD gaps are closed.
+
+**Acceptance criteria:**
+
+- All newly identified requirement gaps are closed with corresponding tests.
+- Verification evidence is recorded in project documentation.
+- Completion sentinel restoration is conditioned on verified full PRD compliance.
 
 ---
 

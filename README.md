@@ -86,7 +86,7 @@ This repository currently contains:
 - Default configuration and prompt template copied from the PRD
 - Deployment artifacts (`Dockerfile`, `gmail_sorter.service`)
 
-PRD verification was re-run on April 17, 2026 after Task 18.9 validation. The remediation queue in `PLAN.md` Task 18 is now complete, and `.DONE` has been restored to mark completion.
+PRD verification was re-run on April 17, 2026 after Task 18.9 validation. A subsequent code-first verification pass identified additional PRD compliance gaps (FR-004, FR-015, FR-074, FR-075, NFR-001, NFR-003, SEC-003, SEC-005, ERR-002, ERR-003, ERR-004, and PRD 14.2/14.3 operational requirements). The remediation queue has been reopened under `PLAN.md` Task 19, and `.DONE` has been removed until follow-up verification confirms full closure.
 
 ## Project Structure
 
@@ -239,4 +239,4 @@ docker run gmail-sorter stats
 
 ## Roadmap
 
-Plan execution is complete. See `PLAN.md` for the verification record and final remediation status.
+Plan execution is active again under Task 19 secondary PRD remediation. See `PLAN.md` for the current verification record and remaining implementation scope.
