@@ -106,7 +106,7 @@ def test_load_runtime_config_applies_global_overrides(monkeypatch) -> None:
     monkeypatch.setattr("gmail_sorter.cli.load_config", lambda _path: config)
 
     options = SimpleNamespace(
-        config_path="./config.yaml",
+        config_path="./data/config.yaml",
         dry_run=True,
         log_level="DEBUG",
     )

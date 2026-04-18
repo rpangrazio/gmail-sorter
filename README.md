@@ -10,7 +10,7 @@ For detailed project status and implementation progress, see [CURRENT_STATUS.md]
 - `tests/` - unit, integration, e2e, and load test directories
 - `prompts/` - Jinja2 prompt templates
 - `config.yaml` - default application configuration
-- `data/` - runtime data directory for credentials, tokens, and database
+- `data/` - runtime data directory for config, credentials, tokens, and database (see `data/config.yaml`)
 
 ## Local Development
 
@@ -82,7 +82,7 @@ pip install -e ".[dev]"
 
 ### Configuration
 
-Create or edit `config.yaml`. The `data/` directory stores credentials, tokens, and database:
+Create or edit `data/config.yaml`. The `data/` directory stores config, credentials, tokens, and database:
 
 ```yaml
 gmail:
@@ -129,7 +129,7 @@ gmail-sorter run
 Options:
 - `--dry-run` - Log classifications without applying Gmail labels
 - `--log-level DEBUG` - Enable debug logging
-- `--config /path/to/config.yaml` - Use custom config file
+- `--config /path/to/data/config.yaml` - Use custom config file
 - `--backfill` - Run backfill alongside the listener
 
 ### Running Backfill
@@ -143,7 +143,7 @@ gmail-sorter backfill
 Options:
 - `--resume` - Resume from last checkpoint
 - `--concurrency N` - Process N emails concurrently (default: 5)
-- `--config /path/to/config.yaml` - Use custom config file
+- `--config /path/to/data/config.yaml` - Use custom config file
 
 ### Validating Configuration
 
@@ -173,7 +173,7 @@ Options:
 | `LLM_BASE_URL` | Base URL for OpenAI-compatible provider | Configured in config.yaml |
 | `GMAIL_CREDENTIALS_PATH` | OAuth credentials path | `credentials.json` |
 | `GMAIL_TOKEN_PATH` | OAuth token path | `token.json` |
-| `CONFIG_PATH` | Config file path | `config.yaml` |
+| `CONFIG_PATH` | Config file path | `data/config.yaml` |
 
 ### Running the Container
 
@@ -183,7 +183,6 @@ docker run -d \
   -e OPENAI_API_KEY=your_api_key \
   -e LLM_BASE_URL=https://api.openai.com \
   -v $(pwd)/data:/app/data \
-  -v $(pwd)/config.yaml:/app/config.yaml:ro \
   gmail-sorter
 ```
 
@@ -199,8 +198,7 @@ The image exposes:
 
 ### Volumes
 
-- `/app/data` - Data directory containing credentials.json, token.json, and gmail_sorter.db
-- `/app/config.yaml` - Configuration file (mount as read-only)
+- `/app/data` - Data directory containing config.yaml, credentials.json, token.json, and gmail_sorter.db
 
 ### Dockerfile Entrypoint
 

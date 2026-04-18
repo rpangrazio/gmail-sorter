@@ -4,6 +4,7 @@
 
 # --- Secrets and credentials (NEVER commit these) --------------------------
 .env
+data/config.yaml
 data/credentials.json
 data/token.json
 data/gmail_sorter.db

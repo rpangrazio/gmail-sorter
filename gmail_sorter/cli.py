@@ -58,7 +58,7 @@ class RuntimeOptions:
 def main(ctx: click.Context, config_path: Path | None, dry_run: bool, log_level: str | None) -> None:
     """Run the gmail-sorter CLI."""
 
-    resolved_config_path = config_path or Path(os.environ.get("GMAIL_SORTER_CONFIG", "./config.yaml"))
+    resolved_config_path = config_path or Path(os.environ.get("GMAIL_SORTER_CONFIG", "./data/config.yaml"))
     ctx.obj = RuntimeOptions(config_path=resolved_config_path, dry_run=dry_run, log_level=log_level)
 
 
