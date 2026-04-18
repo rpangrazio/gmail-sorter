@@ -89,8 +89,10 @@ gmail:
   token_path: token.json
 
 llm:
-  provider: github_copilot
-  api_key: your_api_key_here
+  provider: openai_compatible  # or "github_copilot"
+  model: gpt-4o
+  api_key_env: OPENAI_API_KEY
+  base_url: https://api.openai.com  # required for openai_compatible
 
 pubsub:
   project_id: your-gcp-project
@@ -166,7 +168,7 @@ Options:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `GITHUB_COPILOT_API_KEY` | LLM API key | Configured in config.yaml |
+| `OPENAI_API_KEY` | LLM API key | Configured in config.yaml |
 | `GMAIL_CREDENTIALS_PATH` | OAuth credentials path | `credentials.json` |
 | `GMAIL_TOKEN_PATH` | OAuth token path | `token.json` |
 | `CONFIG_PATH` | Config file path | `config.yaml` |

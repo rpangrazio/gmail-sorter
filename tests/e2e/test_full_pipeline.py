@@ -44,9 +44,9 @@ def _config(database_path: Path) -> AppConfig:
             mode="pull",
         ),
         llm=LlmConfig(
-            provider="github_copilot",
+            provider="openai_compatible",
             model="gpt-4o",
-            api_key_env="GITHUB_COPILOT_API_KEY",
+            api_key_env="OPENAI_API_KEY",
             timeout_seconds=5,
             max_retries=1,
             system_prompt="System",

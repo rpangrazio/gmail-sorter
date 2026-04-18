@@ -55,15 +55,20 @@ pubsub:
 # LLM Provider Settings
 # -----------------------------------------------------------------------------
 llm:
-  # LLM provider identifier. Currently only "github_copilot" is supported.
-  provider: "github_copilot"
+  # LLM provider identifier. Options: "github_copilot" | "openai_compatible"
+  provider: "openai_compatible"
 
   # Model to use for classification. Must be available via the provider.
   model: "gpt-4o"  # Examples: gpt-4o, claude-sonnet-4, gpt-4o-mini
 
   # Name of the environment variable containing the API key.
   # The key itself MUST NOT be stored in this file (SEC-002).
-  api_key_env: "GITHUB_COPILOT_API_KEY"
+  api_key_env: "OPENAI_API_KEY"
+
+  # Base URL for OpenAI-compatible providers. Required when provider is
+  # "openai_compatible". Example: "https://api.openai.com" or
+  # "https://your-custom-endpoint.com"
+  base_url: null  # e.g., "https://api.openai.com"
 
   # Timeout in seconds for each LLM API call.
   timeout_seconds: 30

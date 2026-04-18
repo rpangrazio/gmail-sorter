@@ -31,9 +31,9 @@ def valid_config_dict() -> dict:
             "mode": "pull",
         },
         "llm": {
-            "provider": "github_copilot",
+            "provider": "openai_compatible",
             "model": "gpt-4o",
-            "api_key_env": "GITHUB_COPILOT_API_KEY",
+            "api_key_env": "OPENAI_API_KEY",
             "timeout_seconds": 30,
             "max_retries": 3,
             "system_prompt": "You are an expert email classification assistant.",

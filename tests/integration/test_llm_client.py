@@ -14,9 +14,9 @@ from gmail_sorter.llm.client import COPILOT_CHAT_COMPLETIONS_URL, LlmClient, Llm
 
 def _config(max_retries: int = 2) -> LlmConfig:
     return LlmConfig(
-        provider="github_copilot",
+            provider="openai_compatible",
         model="gpt-4o",
-        api_key_env="GITHUB_COPILOT_API_KEY",
+            api_key_env="OPENAI_API_KEY",
         timeout_seconds=5,
         max_retries=max_retries,
         system_prompt="System prompt",
@@ -29,7 +29,7 @@ def _config(max_retries: int = 2) -> LlmConfig:
 async def test_classify_parses_structured_response(monkeypatch: pytest.MonkeyPatch) -> None:
     """Client should return parsed category/confidence on a successful call."""
 
-    monkeypatch.setenv("GITHUB_COPILOT_API_KEY", "integration-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "integration-key")
 
     respx.post(COPILOT_CHAT_COMPLETIONS_URL).mock(
         return_value=httpx.Response(
@@ -67,7 +67,7 @@ async def test_classify_parses_structured_response(monkeypatch: pytest.MonkeyPat
 async def test_classify_raises_llm_error_after_retries(monkeypatch: pytest.MonkeyPatch) -> None:
     """Repeated 500 responses should raise LlmError after configured retries."""
 
-    monkeypatch.setenv("GITHUB_COPILOT_API_KEY", "integration-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "integration-key")
 
     route = respx.post(COPILOT_CHAT_COMPLETIONS_URL).mock(
         return_value=httpx.Response(500, json={"error": "server error"})
@@ -90,7 +90,7 @@ async def test_classify_retries_on_timeout_then_succeeds(
 ) -> None:
     """Timeout exceptions should trigger retry and allow later success."""
 
-    monkeypatch.setenv("GITHUB_COPILOT_API_KEY", "integration-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "integration-key")
 
     request = httpx.Request("POST", COPILOT_CHAT_COMPLETIONS_URL)
     respx.post(COPILOT_CHAT_COMPLETIONS_URL).mock(

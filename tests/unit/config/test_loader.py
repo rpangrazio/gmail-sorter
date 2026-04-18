@@ -28,9 +28,9 @@ pubsub:
   subscription: "subscription"
   mode: "pull"
 llm:
-  provider: "github_copilot"
+  provider: "openai_compatible"
   model: "gpt-4o"
-  api_key_env: "GITHUB_COPILOT_API_KEY"
+  api_key_env: "OPENAI_API_KEY"
   timeout_seconds: 30
   max_retries: 3
   system_prompt: "system"
@@ -92,9 +92,9 @@ pubsub:
   auth_mode: "service_account"
   credentials_path: "./service-account.json"
 llm:
-  provider: "github_copilot"
+  provider: "openai_compatible"
   model: "gpt-4o"
-  api_key_env: "GITHUB_COPILOT_API_KEY"
+  api_key_env: "OPENAI_API_KEY"
   timeout_seconds: 30
   max_retries: 3
   system_prompt: "system"
@@ -146,9 +146,9 @@ pubsub:
   subscription: "subscription"
   mode: "pull"
 llm:
-  provider: "github_copilot"
+  provider: "openai_compatible"
   model: "gpt-4o"
-  api_key_env: "GITHUB_COPILOT_API_KEY"
+  api_key_env: "OPENAI_API_KEY"
   timeout_seconds: 30
   max_retries: 3
   system_prompt: "system"
@@ -213,9 +213,9 @@ pubsub:
   subscription: "subscription"
   mode: "pull"
 llm:
-  provider: "github_copilot"
+  provider: "openai_compatible"
   model: "gpt-4o"
-  api_key_env: "GITHUB_COPILOT_API_KEY"
+  api_key_env: "OPENAI_API_KEY"
   timeout_seconds: 30
   max_retries: 3
   system_prompt: "system"
@@ -288,9 +288,9 @@ pubsub:
   subscription: "subscription"
   mode: "pull"
 llm:
-  provider: "github_copilot"
+  provider: "openai_compatible"
   model: "gpt-4o"
-  api_key_env: "GITHUB_COPILOT_API_KEY"
+  api_key_env: "OPENAI_API_KEY"
   timeout_seconds: 30
   max_retries: 3
   system_prompt: "system"

@@ -1,4 +1,4 @@
-"""GitHub Copilot LLM client implementation.
+"""LLM client implementation supporting GitHub Copilot and OpenAI-compatible providers.
 
 This module provides the async HTTP integration used for classification calls
 and enforces API-key loading and retry behavior.
@@ -20,6 +20,7 @@ from gmail_sorter.utils.retry import with_retry
 LOGGER = logging.getLogger(__name__)
 
 COPILOT_CHAT_COMPLETIONS_URL = "https://api.githubcopilot.com/chat/completions"
+OPENAI_CHAT_COMPLETIONS_PATH = "/v1/chat/completions"
 
 
 class LlmError(RuntimeError):
@@ -33,7 +34,7 @@ class LlmError(RuntimeError):
 
 
 class LlmClient:
-    """Async client for GitHub Copilot chat completions."""
+    """Async client for GitHub Copilot and OpenAI-compatible chat completions."""
 
     def __init__(
         self,
@@ -59,6 +60,17 @@ class LlmClient:
             timeout=config.timeout_seconds,
             verify=self._tls_context,
         )
+
+        if config.provider == "openai_compatible":
+            if not config.base_url:
+                raise SystemExit(
+                    "base_url is required when provider is 'openai_compatible'."
+                )
+            self._base_url = config.base_url.rstrip("/")
+            self._chat_completions_url = f"{self._base_url}{OPENAI_CHAT_COMPLETIONS_PATH}"
+        else:
+            self._base_url = None
+            self._chat_completions_url = COPILOT_CHAT_COMPLETIONS_URL
 
     @staticmethod
     def _build_tls_context(tls_context: ssl.SSLContext | None = None) -> ssl.SSLContext:
@@ -142,7 +154,7 @@ class LlmClient:
         )
         async def _send() -> httpx.Response:
             response = await self._http_client.post(
-                COPILOT_CHAT_COMPLETIONS_URL,
+                self._chat_completions_url,
                 headers=headers,
                 json=payload,
             )

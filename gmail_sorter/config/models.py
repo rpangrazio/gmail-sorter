@@ -45,9 +45,10 @@ class PubSubConfig(BaseModel):
 class LlmConfig(BaseModel):
     """Configuration for the LLM provider and prompt inputs."""
 
-    provider: Literal["github_copilot"]
+    provider: Literal["github_copilot", "openai_compatible"]
     model: str
     api_key_env: str
+    base_url: str | None = None
     timeout_seconds: int = 30
     max_retries: int = 3
     system_prompt: str

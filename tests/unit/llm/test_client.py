@@ -1,4 +1,4 @@
-"""Unit tests for GitHub Copilot LLM client behavior."""
+"""Unit tests for LLM client behavior."""
 
 from __future__ import annotations
 
@@ -13,11 +13,11 @@ from gmail_sorter.config.models import LlmConfig
 from gmail_sorter.llm.client import COPILOT_CHAT_COMPLETIONS_URL, LlmClient, LlmError
 
 
-def _llm_config(max_retries: int = 2) -> LlmConfig:
+def _llm_config(max_retries: int = 2, provider: str = "openai_compatible") -> LlmConfig:
     return LlmConfig(
-        provider="github_copilot",
+        provider=provider,
         model="gpt-4o",
-        api_key_env="GITHUB_COPILOT_API_KEY",
+        api_key_env="OPENAI_API_KEY",
         timeout_seconds=5,
         max_retries=max_retries,
         system_prompt="System",
@@ -30,7 +30,7 @@ def _llm_config(max_retries: int = 2) -> LlmConfig:
 async def test_classify_sends_expected_request(monkeypatch: pytest.MonkeyPatch) -> None:
     """Client should call Copilot endpoint with expected headers and payload."""
 
-    monkeypatch.setenv("GITHUB_COPILOT_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 
     route = respx.post(COPILOT_CHAT_COMPLETIONS_URL).mock(
         return_value=httpx.Response(
@@ -78,7 +78,7 @@ async def test_classify_sends_expected_request(monkeypatch: pytest.MonkeyPatch) 
 async def test_classify_retries_and_raises_llm_error(monkeypatch: pytest.MonkeyPatch) -> None:
     """Client should retry failing calls and raise LlmError after exhaustion."""
 
-    monkeypatch.setenv("GITHUB_COPILOT_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 
     route = respx.post(COPILOT_CHAT_COMPLETIONS_URL).mock(
         return_value=httpx.Response(500, json={"error": "server error"})
@@ -100,7 +100,7 @@ def test_init_raises_system_exit_when_api_key_missing(
 ) -> None:
     """Client initialization should fail fast when API key env var is absent."""
 
-    monkeypatch.delenv("GITHUB_COPILOT_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
     with pytest.raises(SystemExit):
         LlmClient(_llm_config(), log_prompts=False)
@@ -109,7 +109,7 @@ def test_init_raises_system_exit_when_api_key_missing(
 def test_init_enforces_tls_1_2_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
     """Default TLS context should enforce a minimum of TLS 1.2."""
 
-    monkeypatch.setenv("GITHUB_COPILOT_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 
     context = LlmClient._build_tls_context()
     assert context.minimum_version >= ssl.TLSVersion.TLSv1_2
@@ -118,7 +118,7 @@ def test_init_enforces_tls_1_2_by_default(monkeypatch: pytest.MonkeyPatch) -> No
 def test_init_rejects_insecure_custom_tls_context(monkeypatch: pytest.MonkeyPatch) -> None:
     """Explicit insecure TLS contexts should be rejected during initialization."""
 
-    monkeypatch.setenv("GITHUB_COPILOT_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     insecure_context = ssl.create_default_context()
     insecure_context.minimum_version = ssl.TLSVersion.TLSv1
 
@@ -134,7 +134,7 @@ async def test_classify_logs_lengths_when_prompts_redacted(
 ) -> None:
     """When prompt logging is disabled, logs should contain lengths not prompt text."""
 
-    monkeypatch.setenv("GITHUB_COPILOT_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 
     respx.post(COPILOT_CHAT_COMPLETIONS_URL).mock(
         return_value=httpx.Response(
@@ -178,7 +178,7 @@ async def test_classify_logs_full_prompts_when_enabled(
 ) -> None:
     """When prompt logging is enabled, logs should include prompt content."""
 
-    monkeypatch.setenv("GITHUB_COPILOT_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 
     respx.post(COPILOT_CHAT_COMPLETIONS_URL).mock(
         return_value=httpx.Response(
