@@ -17,7 +17,11 @@ RUN pip install --no-cache-dir .
 RUN useradd --create-home appuser
 USER appuser
 
-EXPOSE 8080
+# Environment variables for LLM provider
+ENV OPENAI_API_KEY=${OPENAI_API_KEY:-}
+ENV LLM_BASE_URL=${LLM_BASE_URL:-}
+
+EXPOSE 8080 9090
 
 # Health check endpoint (see 14.3)
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \

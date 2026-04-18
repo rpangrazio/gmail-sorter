@@ -168,12 +168,25 @@ Options:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `OPENAI_API_KEY` | LLM API key | Configured in config.yaml |
+| `OPENAI_API_KEY` | LLM API key (required) | - |
+| `LLM_BASE_URL` | Base URL for OpenAI-compatible provider | Configured in config.yaml |
 | `GMAIL_CREDENTIALS_PATH` | OAuth credentials path | `credentials.json` |
 | `GMAIL_TOKEN_PATH` | OAuth token path | `token.json` |
 | `CONFIG_PATH` | Config file path | `config.yaml` |
 
-## Containerized Setup
+### Running the Container
+
+```bash
+docker run -d \
+  --name gmail-sorter \
+  -e OPENAI_API_KEY=your_api_key \
+  -e LLM_BASE_URL=https://api.openai.com \
+  -v $(pwd)/config.yaml:/app/config.yaml:ro \
+  -v $(pwd)/credentials.json:/app/credentials.json:ro \
+  -v $(pwd)/token.json:/app/token.json \
+  -v $(pwd)/gmail_sorter.db:/app/gmail_sorter.db \
+  gmail-sorter
+```
 
 ### Building the Image
 
@@ -186,7 +199,8 @@ docker build -t gmail-sorter .
 ```bash
 docker run -d \
   --name gmail-sorter \
-  -e GITHUB_COPILOT_API_KEY=your_api_key \
+  -e OPENAI_API_KEY=your_api_key \
+  -e LLM_BASE_URL=https://api.openai.com \
   -v $(pwd)/config.yaml:/app/config.yaml:ro \
   -v $(pwd)/credentials.json:/app/credentials.json:ro \
   -v $(pwd)/token.json:/app/token.json \
