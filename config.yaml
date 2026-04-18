@@ -11,11 +11,11 @@
 gmail:
   # Path to the OAuth 2.0 client credentials JSON file downloaded from
   # Google Cloud Console.
-  credentials_path: "./credentials.json"
+  credentials_path: "./data/credentials.json"
 
   # Path where the authenticated OAuth token will be stored.
   # File permissions will be set to 0600 automatically.
-  token_path: "./token.json"
+  token_path: "./data/token.json"
 
   # OAuth 2.0 scopes required by the system.
   # Do not modify unless you understand the implications.
@@ -204,7 +204,7 @@ logging:
 # -----------------------------------------------------------------------------
 database:
   # Path to the SQLite database file for classification tracking.
-  path: "./gmail_sorter.db"
+  path: "./data/gmail_sorter.db"
 
   # Retention period for classification and DLQ records.
   retention_days: 90

@@ -10,20 +10,19 @@ WORKDIR /app
 COPY --from=builder /install /usr/local
 COPY . .
 
-# Install project package and CLI entry point
 RUN pip install --no-cache-dir .
 
-# Create non-root user
 RUN useradd --create-home appuser
 USER appuser
 
-# Environment variables for LLM provider
+ENV APP_DIR=/app/data
 ENV OPENAI_API_KEY=${OPENAI_API_KEY:-}
 ENV LLM_BASE_URL=${LLM_BASE_URL:-}
 
+RUN mkdir -p $APP_DIR
+
 EXPOSE 8080 9090
 
-# Health check endpoint (see 14.3)
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"
 

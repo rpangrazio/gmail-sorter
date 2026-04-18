@@ -10,6 +10,7 @@ For detailed project status and implementation progress, see [CURRENT_STATUS.md]
 - `tests/` - unit, integration, e2e, and load test directories
 - `prompts/` - Jinja2 prompt templates
 - `config.yaml` - default application configuration
+- `data/` - runtime data directory for credentials, tokens, and database
 
 ## Local Development
 
@@ -69,7 +70,7 @@ Before running gmail-sorter, you need:
 
 1. **Python 3.11+** virtual environment
 2. **Gmail OAuth credentials** (`credentials.json`) from [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
-3. **LLM API key** (configured in `config.yaml` or via `GITHUB_COPILOT_API_KEY` environment variable)
+3. **LLM API key** (configured in `config.yaml` or via `OPENAI_API_KEY` environment variable)
 4. **Pub/Sub topic and subscription** (for real-time processing) - create via Google Cloud Console or `gcloud`
 
 ### Installation
@@ -81,12 +82,12 @@ pip install -e ".[dev]"
 
 ### Configuration
 
-Create or edit `config.yaml`:
+Create or edit `config.yaml`. The `data/` directory stores credentials, tokens, and database:
 
 ```yaml
 gmail:
-  credentials_path: credentials.json
-  token_path: token.json
+  credentials_path: ./data/credentials.json
+  token_path: ./data/token.json
 
 llm:
   provider: openai_compatible  # or "github_copilot"
@@ -181,10 +182,8 @@ docker run -d \
   --name gmail-sorter \
   -e OPENAI_API_KEY=your_api_key \
   -e LLM_BASE_URL=https://api.openai.com \
+  -v $(pwd)/data:/app/data \
   -v $(pwd)/config.yaml:/app/config.yaml:ro \
-  -v $(pwd)/credentials.json:/app/credentials.json:ro \
-  -v $(pwd)/token.json:/app/token.json \
-  -v $(pwd)/gmail_sorter.db:/app/gmail_sorter.db \
   gmail-sorter
 ```
 
@@ -194,30 +193,14 @@ docker run -d \
 docker build -t gmail-sorter .
 ```
 
-### Running the Container
-
-```bash
-docker run -d \
-  --name gmail-sorter \
-  -e OPENAI_API_KEY=your_api_key \
-  -e LLM_BASE_URL=https://api.openai.com \
-  -v $(pwd)/config.yaml:/app/config.yaml:ro \
-  -v $(pwd)/credentials.json:/app/credentials.json:ro \
-  -v $(pwd)/token.json:/app/token.json \
-  -v $(pwd)/gmail_sorter.db:/app/gmail_sorter.db \
-  gmail-sorter
-```
-
 The image exposes:
 - Port 8080 - Health check endpoint
 - Port 9090 - Prometheus metrics endpoint
 
 ### Volumes
 
+- `/app/data` - Data directory containing credentials.json, token.json, and gmail_sorter.db
 - `/app/config.yaml` - Configuration file (mount as read-only)
-- `/app/credentials.json` - OAuth credentials
-- `/app/token.json` - OAuth token (persist to retain authentication)
-- `/app/gmail_sorter.db` - SQLite database
 
 ### Dockerfile Entrypoint
 
