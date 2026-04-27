@@ -212,4 +212,6 @@ docker run gmail-sorter stats
 
 ## Roadmap
 
-Plan execution has been reopened for PRD gap remediation. See `PLAN.md` execution status and Task 18 for the active implementation queue.
+Plan execution has been completed and no outstanding implementation tasks remain. A completion sentinel file `.DONE` is present in the repository root to indicate the plan is complete.
+
+For historical context and past remediation efforts see `PLAN.md` and `CHANGELOG.md`.
