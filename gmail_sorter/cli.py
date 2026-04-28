@@ -186,6 +186,30 @@ def _load_runtime_config(options: RuntimeOptions) -> AppConfig:
         config.processing.dry_run = True
     if options.log_level is not None:
         config.logging.level = options.log_level
+
+    # Allow runtime environment overrides for LLM settings so API keys and
+    # provider base URLs are supplied at container/runtime invocation rather
+    # than baked into the image or config file.
+    #
+    # LLM_BASE_URL: if present, overrides llm.base_url from the YAML config.
+    # LLM_API_KEY_ENV: if present, overrides the name of the env var that
+    #                  contains the LLM API key (config.llm.api_key_env).
+    # LLM_API_KEY: if present, injects the literal API key into the resolved
+    #              api_key_env name so the LlmClient can read it as usual.
+    llm_base = os.environ.get("LLM_BASE_URL")
+    if llm_base:
+        config.llm.base_url = llm_base
+
+    llm_api_key_env = os.environ.get("LLM_API_KEY_ENV")
+    if llm_api_key_env:
+        config.llm.api_key_env = llm_api_key_env
+
+    # If a raw API key is provided via LLM_API_KEY, inject it into the
+    # configured api_key_env name so downstream clients (which read the
+    # variable by name) continue to work without further changes.
+    llm_api_key = os.environ.get("LLM_API_KEY")
+    if llm_api_key:
+        os.environ.setdefault(config.llm.api_key_env, llm_api_key)
     return config
 
 
