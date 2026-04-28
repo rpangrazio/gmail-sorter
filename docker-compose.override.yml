@@ -1,0 +1,15 @@
+version: '3.8'
+
+# Development override for docker-compose. Mounts source for live edit
+# and sets sensible defaults for iterative development.
+services:
+  gmail-sorter:
+    volumes:
+      - ./:/app:rw
+      - ./data:/app/data:rw
+    environment:
+      # Keep Python output unbuffered for easier logs in containers
+      - PYTHONUNBUFFERED=1
+      - GMAIL_SORTER_CONFIG=/app/data/config.yaml
+    # Default to running the service; override on the docker-compose CLI if needed
+    command: ["gmail-sorter", "run"]
