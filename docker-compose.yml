@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  gmail-sorter:
+    build: .
+    image: gmail-sorter:local
+    container_name: gmail-sorter
+    restart: unless-stopped
+    ports:
+      - "8080:8080" # health port
+      - "9090:9090" # metrics port
+    environment:
+      # Prefer supplying secrets via the environment or an external secrets
+      # manager. These entries reference environment variables on the host
+      # or from a .env file. Example values should be provided by the user.
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_API_KEY_ENV=${LLM_API_KEY_ENV:-OPENAI_API_KEY}
+      - LLM_BASE_URL=${LLM_BASE_URL:-}
+      - GMAIL_SORTER_CONFIG=/app/data/config.yaml
+    volumes:
+      - ./data:/app/data:rw
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/health')\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
