@@ -1,0 +1,73 @@
+# Example configuration for gmail-sorter. Copy to data/config.yaml and
+# adjust values before running the service.
+
+gmail:
+  credentials_path: ./data/credentials.json
+  token_path: ./data/token.json
+  scopes:
+    - "https://www.googleapis.com/auth/gmail.readonly"
+    - "https://www.googleapis.com/auth/gmail.labels"
+    - "https://www.googleapis.com/auth/gmail.modify"
+
+pubsub:
+  project_id: your-gcp-project-id
+  topic: gmail-notifications
+  subscription: gmail-sorter-subscription
+  mode: pull
+  auth_mode: default
+  credentials_path: null
+  push_endpoint: "/pubsub"
+  push_port: 8081
+
+llm:
+  provider: openai_compatible
+  model: gpt-4o
+  # Name of the environment variable containing the API key. Do NOT store
+  # the API key in this file. Use environment variables or a secrets manager.
+  api_key_env: OPENAI_API_KEY
+  base_url: null
+  timeout_seconds: 30
+  max_retries: 3
+  system_prompt: |
+    You are an expert email classification assistant. Your task is to
+    categorize emails into predefined categories based on their content,
+    sender, subject, and metadata. You must respond with valid JSON only.
+  prompt_template: ./prompts/classify_email.j2
+
+classification:
+  confidence_threshold: 0.7
+  fallback_category: uncategorized
+  multi_label: false
+  allowlist: []
+  blocklist: []
+
+categories:
+  - name: marketing
+    label: AutoSort/Marketing
+    description: Promotional emails from brands, companies, or services.
+  - name: receipts
+    label: AutoSort/Receipts
+    description: Purchase confirmations and shipping notifications.
+
+processing:
+  body_max_length: 4096
+  batch_size: 50
+  backfill_concurrency: 5
+  archive_after_label: false
+  dry_run: false
+  backfill_progress_interval: 100
+
+logging:
+  level: INFO
+  log_prompts: false
+
+database:
+  path: ./data/gmail_sorter.db
+  retention_days: 90
+
+observability:
+  health_port: 8080
+  metrics_port: 9090
+
+alerts:
+  webhook_url: null
